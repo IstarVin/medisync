@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import { toTitleCase } from '$lib/utils';
 	import {
 		AlertCircle,
 		ArrowLeft,
@@ -150,22 +151,24 @@
 	}
 
 	function formatConditions(conditions: string[]): string {
+		conditions = conditions.map(toTitleCase);
 		if (conditions.length === 0) return 'None';
 		if (conditions.length === 1) return conditions[0];
 		return `${conditions[0]} +${conditions.length - 1} more`;
 	}
 
 	function getMedicalSeverity(conditions: string[]): 'none' | 'low' | 'medium' | 'high' {
-		if (conditions.length === 0) return 'none';
+		return 'none';
+		// if (conditions.length === 0) return 'none';
 
-		const highRiskConditions = ['diabetes', 'epilepsy', 'asthma'];
-		const hasHighRisk = conditions.some((condition) =>
-			highRiskConditions.some((risk) => condition.toLowerCase().includes(risk))
-		);
+		// const highRiskConditions = ['diabetes', 'epilepsy', 'asthma'];
+		// const hasHighRisk = conditions.some((condition) =>
+		// 	highRiskConditions.some((risk) => condition.toLowerCase().includes(risk))
+		// );
 
-		if (hasHighRisk) return 'high';
-		if (conditions.length > 2) return 'medium';
-		return 'low';
+		// if (hasHighRisk) return 'high';
+		// if (conditions.length > 2) return 'medium';
+		// return 'low';
 	}
 
 	function clearFilters() {
