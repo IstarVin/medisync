@@ -11,38 +11,38 @@
 	let { summaries }: { summaries: VisitSummary[] } = $props();
 </script>
 
-<!-- Container queries for responsive card layout -->
-<div class="medical-container @container flex flex-wrap gap-4 p-4">
+<!-- Responsive card layout -->
+<div class="flex flex-wrap gap-4 p-4">
 	{#each summaries as summary}
-		<!-- Use container queries for adaptive card sizing -->
+		<!-- Use responsive card sizing -->
 		<Card.Root
-			class="flex-1 space-y-3 medical-card medical-card-hover @xs:min-w-[12rem] @sm:min-w-[14rem] @md:min-w-[16rem] @lg:min-w-[18rem]"
+			class="medical-card min-w-[12rem] flex-1 space-y-3 sm:min-w-[14rem] md:min-w-[16rem] lg:min-w-[18rem]"
 		>
 			<Card.Content class="space-y-3 p-0">
-				<!-- Enhanced typography with semantic color usage -->
+				<!-- Enhanced typography -->
 				<h3 class="text-base leading-normal font-medium text-foreground">
 					{summary.title}
 				</h3>
 
-				<!-- Large count display with enhanced styling -->
-				<div class="text-3xl leading-none font-bold tracking-tight text-foreground @md:text-4xl">
+				<!-- Large count display -->
+				<div class="text-3xl leading-none font-bold tracking-tight text-foreground md:text-4xl">
 					{summary.count.toLocaleString()}
 				</div>
 
-				<!-- Action link with improved hover states -->
+				<!-- Action link -->
 				{#if summary.actionHref}
 					<a
 						href={summary.actionHref}
 						class="inline-flex items-center text-sm font-medium text-muted-foreground
-						       transition-all duration-[--duration-fast] ease-out
+						       transition-all duration-150 ease-out
 						       hover:text-foreground hover:underline hover:underline-offset-4
 						       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring
 						       active:scale-[0.98]"
 					>
 						{summary.actionText}
-						<!-- Arrow icon using arbitrary SVG -->
+						<!-- Arrow icon -->
 						<svg
-							class="ml-1 h-3 w-3 transition-transform duration-[--duration-fast] group-hover:translate-x-0.5"
+							class="ml-1 h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5"
 							fill="none"
 							stroke="currentColor"
 							viewBox="0 0 24 24"

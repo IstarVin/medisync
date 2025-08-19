@@ -1,7 +1,20 @@
 <script lang="ts">
+	import MobileMenuButton from '$lib/components/mobile-menu-button.svelte';
+	import MobileNavigation from '$lib/components/mobile-navigation.svelte';
 	import RecentVisitsTable from '$lib/components/recent-visits-table.svelte';
 	import SidebarNavigation from '$lib/components/sidebar-navigation.svelte';
+	import ThemeSwitcher from '$lib/components/theme-switcher.svelte';
 	import VisitSummaryCards from '$lib/components/visit-summary-cards.svelte';
+
+	let isMobileMenuOpen = $state(false);
+
+	function toggleMobileMenu() {
+		isMobileMenuOpen = !isMobileMenuOpen;
+	}
+
+	function closeMobileMenu() {
+		isMobileMenuOpen = false;
+	}
 
 	// Sample data - in a real app this would come from a load function
 	const visitSummaries = [
@@ -69,35 +82,42 @@
 	];
 </script>
 
-<SidebarNavigation />
+<!-- Desktop sidebar - hidden on mobile -->
+<div class="hidden md:block">
+	<SidebarNavigation />
+</div>
 
-<!-- Modern dashboard layout with container queries and advanced Tailwind patterns -->
-<main
-	class="medical-container layout-content-container @container flex max-w-[--container-medical-dashboard] flex-1 flex-col"
->
-	<!-- Enhanced header section with better typography -->
-	<header class="flex flex-wrap justify-between gap-6 border-b border-outline bg-surface/50 p-6">
-		<div class="@container flex min-w-[18rem] flex-col gap-3">
-			<!-- Using medical typography utility and semantic colors -->
-			<h1 class="medical-typography-heading text-3xl text-foreground @md:text-4xl">Dashboard</h1>
-			<p class="medical-typography-body text-base text-muted-foreground @md:text-lg">
-				Welcome back, <span class="font-medium text-foreground">Nurse Emily Carter</span>
-			</p>
+<!-- Mobile navigation overlay -->
+<MobileNavigation isOpen={isMobileMenuOpen} onClose={closeMobileMenu} />
+
+<!-- Modern responsive dashboard layout -->
+<main class="flex w-full max-w-none flex-1 flex-col md:max-w-6xl">
+	<!-- Enhanced mobile-first header with navigation controls -->
+	<header
+		class="flex flex-wrap items-center justify-between gap-4 border-b border-border bg-card/50 p-4 md:p-6"
+	>
+		<div class="flex items-center gap-3">
+			<!-- Mobile menu button -->
+			<MobileMenuButton isOpen={isMobileMenuOpen} onToggle={toggleMobileMenu} />
+
+			<!-- Header content -->
+			<div class="flex min-w-0 flex-col gap-2">
+				<h1 class="medical-typography-heading text-2xl text-foreground md:text-3xl lg:text-4xl">
+					Dashboard
+				</h1>
+				<p class="medical-typography-body text-sm text-muted-foreground md:text-base lg:text-lg">
+					Welcome back, <span class="font-medium text-foreground">Nurse Emily Carter</span>
+				</p>
+			</div>
 		</div>
 
-		<!-- Optional status indicator using custom utility -->
-		<!-- <div
-			class="flex items-center gap-2 rounded-full border border-medical-success/20 bg-medical-success/10 px-4 py-2 text-medical-success"
-		>
-			<div class="h-2 w-2 animate-pulse rounded-full bg-medical-success"></div>
-			<span class="text-sm font-medium">System Online</span>
-		</div> -->
+		<ThemeSwitcher />
 	</header>
 
-	<!-- Visit summaries section with enhanced spacing -->
-	<section class="medical-section">
-		<div class="px-6">
-			<h2 class="mb-4 medical-typography-heading text-xl text-foreground @md:text-2xl">
+	<!-- Visit summaries section with responsive spacing -->
+	<section class="py-6 md:py-8">
+		<div class="px-4 md:px-6">
+			<h2 class="medical-typography-heading mb-4 text-lg text-foreground md:text-xl lg:text-2xl">
 				Visit Summaries
 			</h2>
 		</div>
@@ -105,10 +125,10 @@
 		<VisitSummaryCards summaries={visitSummaries} />
 	</section>
 
-	<!-- Recent visits section with better organization -->
-	<section class="medical-section pb-8">
-		<div class="px-6">
-			<h2 class="mb-4 medical-typography-heading text-xl text-foreground @md:text-2xl">
+	<!-- Recent visits section with responsive layout -->
+	<section class="pb-6 md:pb-8">
+		<div class="px-4 md:px-6">
+			<h2 class="medical-typography-heading mb-4 text-lg text-foreground md:text-xl lg:text-2xl">
 				Recent Student Visits
 			</h2>
 		</div>
