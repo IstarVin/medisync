@@ -2,68 +2,26 @@
 	import RecentVisitsTable from '$lib/components/recent-visits-table.svelte';
 	import VisitSummaryCards from '$lib/components/visit-summary-cards.svelte';
 
-	// Sample data - in a real app this would come from a load function
+	let { data } = $props();
+
 	const visitSummaries = [
 		{
 			title: "Today's Visits",
-			count: 7,
+			count: data.visitsThisDay,
 			actionText: 'View Records',
-			actionHref: '/visits/today'
+			actionHref: '/visits?filter=today'
 		},
 		{
 			title: "This Month's Visits",
-			count: 25,
+			count: data.visitsThisMonth,
 			actionText: 'View Records',
-			actionHref: '/visits/month'
+			actionHref: '/visits?filter=month'
 		},
 		{
 			title: 'All Visits',
-			count: 150,
+			count: data.totalVisits,
 			actionText: 'View Records',
-			actionHref: '/visits/all'
-		}
-	];
-
-	const recentVisits = [
-		{
-			id: '1',
-			patientName: 'Liam Harper',
-			section: 'Grade 10',
-			reasonForVisit: 'Fever and cough',
-			time: '10:00 AM',
-			date: '2024-07-26'
-		},
-		{
-			id: '2',
-			patientName: 'Olivia Hayes',
-			section: 'Grade 11',
-			reasonForVisit: 'Head injury',
-			time: '2:30 PM',
-			date: '2024-07-25'
-		},
-		{
-			id: '3',
-			patientName: 'Ethan Reed',
-			section: 'Grade 9',
-			reasonForVisit: 'Sprained ankle',
-			time: '11:45 AM',
-			date: '2024-07-24'
-		},
-		{
-			id: '4',
-			patientName: 'Ava Foster',
-			section: 'Grade 12',
-			reasonForVisit: 'Allergic reaction',
-			time: '9:15 AM',
-			date: '2024-07-23'
-		},
-		{
-			id: '5',
-			patientName: 'Noah Parker',
-			section: 'Grade 10',
-			reasonForVisit: 'Sore throat',
-			time: '1:00 PM',
-			date: '2024-07-22'
+			actionHref: '/visits'
 		}
 	];
 </script>
@@ -89,6 +47,6 @@
 			</h2>
 		</div>
 
-		<RecentVisitsTable visits={recentVisits} />
+		<RecentVisitsTable visits={data.recentVisits} />
 	</section>
 </main>
