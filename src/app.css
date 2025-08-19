@@ -4,6 +4,9 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Alternative data-attribute based dark mode variant */
+@custom-variant dark-data (&:is([data-theme="dark"] *));
+
 @theme {
 	/* Radius system */
 	--radius: 0.625rem;

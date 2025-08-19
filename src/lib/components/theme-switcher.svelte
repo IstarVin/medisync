@@ -1,29 +1,42 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
 	import { Moon, Sun } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
-	let theme = $state('light');
+	interface Props {
+		initialTheme?: string;
+	}
+
+	let { initialTheme = 'light' }: Props = $props();
+
+	let theme = $state(initialTheme);
 	let mounted = $state(false);
 
 	onMount(() => {
 		mounted = true;
 
-		// Get theme from localStorage or system preference
+		// Get initial theme from the html element's class (set by server)
+		const htmlElement = document.documentElement;
+		const serverTheme = htmlElement.classList.contains('dark') ? 'dark' : 'light';
+
+		// Use server theme or initial prop
+		theme = serverTheme;
+
+		// Check localStorage for any client preference that might override server
 		const savedTheme = localStorage.getItem('theme');
-		if (savedTheme) {
+		if (savedTheme && savedTheme !== theme) {
 			theme = savedTheme;
-		} else {
-			theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+			updateTheme();
+			syncWithServer();
 		}
 
-		updateTheme();
-
-		// Listen for system theme changes
+		// Listen for system theme changes only if no explicit preference is set
 		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
 		const handleChange = (e: MediaQueryListEvent) => {
 			if (!localStorage.getItem('theme')) {
 				theme = e.matches ? 'dark' : 'light';
 				updateTheme();
+				syncWithServer();
 			}
 		};
 
@@ -35,10 +48,34 @@
 	});
 
 	function updateTheme() {
+		if (!browser) return;
+
+		const htmlElement = document.documentElement;
+
 		if (theme === 'dark') {
-			document.documentElement.classList.add('dark');
+			htmlElement.classList.add('dark');
+			htmlElement.setAttribute('data-theme', 'dark');
 		} else {
-			document.documentElement.classList.remove('dark');
+			htmlElement.classList.remove('dark');
+			htmlElement.setAttribute('data-theme', 'light');
+		}
+	}
+
+	async function syncWithServer() {
+		if (!browser) return;
+
+		try {
+			// Send theme preference to server via cookie
+			await fetch('/api/theme', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ theme })
+			});
+		} catch (error) {
+			// Fallback: set cookie directly if API route doesn't exist
+			document.cookie = `theme=${theme}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
 		}
 	}
 
@@ -46,16 +83,17 @@
 		theme = theme === 'light' ? 'dark' : 'light';
 		localStorage.setItem('theme', theme);
 		updateTheme();
+		syncWithServer();
 	}
 </script>
 
 {#if mounted}
 	<button
 		onclick={toggleTheme}
-		class="group relative inline-flex h-9 w-9 items-center justify-center rounded-lg
-		       border border-border bg-background/80 text-foreground transition-all
-		       duration-200 ease-out
-		       hover:border-border-hover hover:bg-accent hover:text-accent-foreground
+		class="group hover:border-border-hover relative inline-flex h-9 w-9 items-center justify-center
+		       rounded-lg border border-border bg-background/80 text-foreground
+		       transition-all duration-200
+		       ease-out hover:bg-accent hover:text-accent-foreground
 		       focus-visible:outline-2
 		       focus-visible:outline-offset-2 focus-visible:outline-ring active:scale-95"
 		aria-label={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}

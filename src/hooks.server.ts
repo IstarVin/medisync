@@ -1,3 +1,6 @@
+import type { Handle } from '@sveltejs/kit';
+import { sequence } from '@sveltejs/kit/hooks';
+
 // const handleAuth: Handle = async ({ event, resolve }) => {
 // 	const sessionToken = event.cookies.get(auth.sessionCookieName);
 
@@ -20,4 +23,22 @@
 // 	return resolve(event);
 // };
 
-// export const handle: Handle = handleAuth;
+const handleTheme: Handle = async ({ event, resolve }) => {
+	// Get theme from cookie, fallback to 'light' if not set
+	const theme = event.cookies.get('theme') || 'light';
+
+	// Set theme in locals for access throughout the app
+	event.locals.theme = theme;
+
+	return await resolve(event, {
+		transformPageChunk: ({ html }) => {
+			// Replace the empty data-theme attribute with the actual theme
+			// Also add the theme class to the html element for Tailwind CSS dark mode
+			return html
+				.replace('data-theme=""', `data-theme="${theme}"`)
+				.replace('<html lang="en"', `<html lang="en" class="${theme === 'dark' ? 'dark' : ''}"`);
+		}
+	});
+};
+
+export const handle: Handle = sequence(handleTheme);
