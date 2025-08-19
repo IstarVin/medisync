@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { Calendar, House, Users } from '@lucide/svelte';
 
 	interface Props {
@@ -43,7 +43,7 @@
 <nav class="flex flex-col gap-2" aria-label="Main navigation">
 	{#each mainMenuItems as item}
 		{@const Icon = item.icon}
-		{@const isActive = isActiveRoute(item.href, $page.url.pathname)}
+		{@const isActive = isActiveRoute(item.href, page.url.pathname)}
 		<a
 			href={item.href}
 			onclick={handleNavClick}

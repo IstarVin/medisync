@@ -43,15 +43,13 @@
 		<!-- Mobile navigation panel -->
 		<nav
 			id="mobile-navigation"
-			class="fixed top-0 left-0 h-full w-80 max-w-[85vw] border-r border-gray-200 bg-white shadow-xl dark:border-gray-800 dark:bg-gray-950"
+			class="fixed top-0 left-0 h-full w-80 max-w-[85vw] border-r border-background bg-sidebar"
 			transition:fly={{ x: -320, duration: 300, opacity: 1 }}
 			aria-label="Mobile navigation"
 		>
 			<div class="flex h-full flex-col">
 				<!-- Header with close button -->
-				<div
-					class="flex items-center justify-between border-b border-gray-200 p-6 dark:border-gray-800"
-				>
+				<div class="flex items-center justify-between border-b border-background p-6">
 					<AppLogo />
 
 					<button

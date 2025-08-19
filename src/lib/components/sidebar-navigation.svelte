@@ -3,12 +3,10 @@
 	import NavigationMenuItems from './navigation-menu-items.svelte';
 </script>
 
-<!-- Modern sidebar with enhanced styling -->
+<!-- Modern sidebar with enhanced styling and fixed positioning -->
 <div class="flex w-64 flex-col lg:w-80">
-	<div
-		class="flex h-full min-h-screen flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950"
-	>
-		<div class="flex flex-col gap-6 p-6">
+	<div class="flex h-screen flex-col border-r border-sidebar-border bg-sidebar">
+		<div class="flex flex-col gap-6 overflow-y-auto p-6">
 			<!-- Enhanced logo section -->
 			<AppLogo />
 
