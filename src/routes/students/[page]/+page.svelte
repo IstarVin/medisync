@@ -6,6 +6,8 @@
 	import * as Table from '$lib/components/ui/table/index.js';
 	import {
 		AlertCircle,
+		ArrowLeft,
+		ArrowRight,
 		Edit,
 		Eye,
 		Funnel,
@@ -13,8 +15,13 @@
 		Heart,
 		Plus,
 		Search,
-		UserPlus
+		UserPlus,
+		X
 	} from '@lucide/svelte';
+	import type { PageData } from './$types';
+
+	// Props from the load function
+	const { data }: { data: PageData } = $props();
 
 	// Types based on database schema
 	type StudentStatus = 'active' | 'inactive';
@@ -25,16 +32,16 @@
 		studentId: string;
 		firstName: string;
 		lastName: string;
-		email?: string;
+		email?: string | null;
 		dateOfBirth: Date;
 		gender: Gender;
 		grade: string;
-		section?: string;
+		section?: string | null;
 		chronicHealthConditions: string[];
 		currentMedications: string[];
 		enrollmentDate: Date;
 		isActive: boolean;
-		profilePicture?: string;
+		profilePicture?: string | null;
 	};
 
 	type FilterOptions = {
@@ -44,7 +51,7 @@
 		status: StudentStatus | '';
 	};
 
-	// Reactive state using Svelte 5 runes
+	// Client-side reactive state using Svelte 5 runes
 	let searchQuery = $state('');
 	let filters = $state<FilterOptions>({
 		grade: '',
@@ -52,189 +59,55 @@
 		gender: '',
 		status: ''
 	});
-	let isLoading = $state(false);
 
-	// Sample data - in real app this would come from the database
-	let allStudents = $state<Student[]>([
-		{
-			id: '1',
-			studentId: '2023001',
-			firstName: 'Ethan',
-			lastName: 'Carter',
-			email: 'ethan.carter@school.edu',
-			dateOfBirth: new Date('2008-03-15'),
-			gender: 'male',
-			grade: '10th',
-			section: 'A',
-			chronicHealthConditions: [],
-			currentMedications: [],
-			enrollmentDate: new Date('2023-08-15'),
-			isActive: true
-		},
-		{
-			id: '2',
-			studentId: '2023002',
-			firstName: 'Olivia',
-			lastName: 'Bennett',
-			email: 'olivia.bennett@school.edu',
-			dateOfBirth: new Date('2007-09-22'),
-			gender: 'female',
-			grade: '11th',
-			section: 'B',
-			chronicHealthConditions: ['Allergies (Peanuts)'],
-			currentMedications: ['EpiPen'],
-			enrollmentDate: new Date('2023-08-15'),
-			isActive: true
-		},
-		{
-			id: '3',
-			studentId: '2023003',
-			firstName: 'Noah',
-			lastName: 'Thompson',
-			email: 'noah.thompson@school.edu',
-			dateOfBirth: new Date('2009-01-10'),
-			gender: 'male',
-			grade: '9th',
-			section: 'A',
-			chronicHealthConditions: ['Asthma'],
-			currentMedications: ['Albuterol Inhaler'],
-			enrollmentDate: new Date('2023-08-15'),
-			isActive: true
-		},
-		{
-			id: '4',
-			studentId: '2023004',
-			firstName: 'Sophia',
-			lastName: 'Ramirez',
-			email: 'sophia.ramirez@school.edu',
-			dateOfBirth: new Date('2006-11-30'),
-			gender: 'female',
-			grade: '12th',
-			section: 'A',
-			chronicHealthConditions: ['Type 1 Diabetes'],
-			currentMedications: ['Insulin'],
-			enrollmentDate: new Date('2023-08-15'),
-			isActive: true
-		},
-		{
-			id: '5',
-			studentId: '2023005',
-			firstName: 'Liam',
-			lastName: 'Foster',
-			email: 'liam.foster@school.edu',
-			dateOfBirth: new Date('2008-07-14'),
-			gender: 'male',
-			grade: '10th',
-			section: 'B',
-			chronicHealthConditions: [],
-			currentMedications: [],
-			enrollmentDate: new Date('2023-08-15'),
-			isActive: true
-		},
-		{
-			id: '6',
-			studentId: '2023006',
-			firstName: 'Ava',
-			lastName: 'Mitchell',
-			email: 'ava.mitchell@school.edu',
-			dateOfBirth: new Date('2007-05-18'),
-			gender: 'female',
-			grade: '11th',
-			section: 'A',
-			chronicHealthConditions: ['Allergies (Dairy)'],
-			currentMedications: [],
-			enrollmentDate: new Date('2023-08-15'),
-			isActive: true
-		},
-		{
-			id: '7',
-			studentId: '2023007',
-			firstName: 'Jackson',
-			lastName: 'Hayes',
-			email: 'jackson.hayes@school.edu',
-			dateOfBirth: new Date('2009-02-25'),
-			gender: 'male',
-			grade: '9th',
-			section: 'C',
-			chronicHealthConditions: ['Epilepsy'],
-			currentMedications: ['Seizure medication'],
-			enrollmentDate: new Date('2023-08-15'),
-			isActive: true
-		},
-		{
-			id: '8',
-			studentId: '2023008',
-			firstName: 'Isabella',
-			lastName: 'Coleman',
-			email: 'isabella.coleman@school.edu',
-			dateOfBirth: new Date('2006-12-03'),
-			gender: 'female',
-			grade: '12th',
-			section: 'B',
-			chronicHealthConditions: [],
-			currentMedications: [],
-			enrollmentDate: new Date('2023-08-15'),
-			isActive: true
-		},
-		{
-			id: '9',
-			studentId: '2023009',
-			firstName: 'Lucas',
-			lastName: 'Harper',
-			email: 'lucas.harper@school.edu',
-			dateOfBirth: new Date('2008-08-17'),
-			gender: 'male',
-			grade: '10th',
-			section: 'A',
-			chronicHealthConditions: ['Allergies (Gluten)'],
-			currentMedications: [],
-			enrollmentDate: new Date('2023-08-15'),
-			isActive: true
-		},
-		{
-			id: '10',
-			studentId: '2023010',
-			firstName: 'Mia',
-			lastName: 'Powell',
-			email: 'mia.powell@school.edu',
-			dateOfBirth: new Date('2007-04-12'),
-			gender: 'female',
-			grade: '11th',
-			section: 'C',
-			chronicHealthConditions: [],
-			currentMedications: [],
-			enrollmentDate: new Date('2023-08-15'),
-			isActive: true
-		}
-	]);
+	// Get data from load function
+	let allStudents = $state<Student[]>(
+		data.allStudents.map((student) => ({
+			...student,
+			dateOfBirth: new Date(student.dateOfBirth),
+			enrollmentDate: new Date(student.enrollmentDate)
+		}))
+	);
+	let currentPageStudents = $state<Student[]>(
+		data.students.map((student) => ({
+			...student,
+			dateOfBirth: new Date(student.dateOfBirth),
+			enrollmentDate: new Date(student.enrollmentDate)
+		}))
+	);
 
-	// Filter and search functionality
+	let studentStats = $state(data.stats);
+	let uniqueGrades = $state(data.filterOptions.grades);
+	let uniqueMedicalConditions = $state(data.filterOptions.medicalConditions);
+	let pagination = $state(data.pagination);
+
+	// Client-side filtering logic
 	let filteredStudents = $derived.by(() => {
-		let result = allStudents;
+		let students = currentPageStudents;
 
 		// Apply search filter
 		if (searchQuery.trim()) {
-			const query = searchQuery.toLowerCase();
-			result = result.filter(
+			const query = searchQuery.toLowerCase().trim();
+			students = students.filter(
 				(student) =>
 					student.firstName.toLowerCase().includes(query) ||
 					student.lastName.toLowerCase().includes(query) ||
 					student.studentId.toLowerCase().includes(query) ||
-					student.email?.toLowerCase().includes(query)
+					(student.email && student.email.toLowerCase().includes(query))
 			);
 		}
 
 		// Apply grade filter
 		if (filters.grade) {
-			result = result.filter((student) => student.grade === filters.grade);
+			students = students.filter((student) => student.grade === filters.grade);
 		}
 
 		// Apply medical condition filter
 		if (filters.medicalCondition) {
 			if (filters.medicalCondition === 'none') {
-				result = result.filter((student) => student.chronicHealthConditions.length === 0);
+				students = students.filter((student) => student.chronicHealthConditions.length === 0);
 			} else {
-				result = result.filter((student) =>
+				students = students.filter((student) =>
 					student.chronicHealthConditions.some((condition) =>
 						condition.toLowerCase().includes(filters.medicalCondition.toLowerCase())
 					)
@@ -244,40 +117,26 @@
 
 		// Apply gender filter
 		if (filters.gender) {
-			result = result.filter((student) => student.gender === filters.gender);
+			students = students.filter((student) => student.gender === filters.gender);
 		}
 
 		// Apply status filter
 		if (filters.status) {
-			result = result.filter((student) =>
-				filters.status === 'active' ? student.isActive : !student.isActive
-			);
+			const isActive = filters.status === 'active';
+			students = students.filter((student) => student.isActive === isActive);
 		}
 
-		return result;
+		return students;
 	});
 
-	// Get unique values for filter options
-	let uniqueGrades = $derived.by(() => {
-		const grades = [...new Set(allStudents.map((s) => s.grade))];
-		return grades.sort((a, b) => {
-			const aNum = parseInt(a);
-			const bNum = parseInt(b);
-			return aNum - bNum;
-		});
-	});
-
-	let uniqueMedicalConditions = $derived.by(() => {
-		const conditions = new Set<string>();
-		allStudents.forEach((student) => {
-			student.chronicHealthConditions.forEach((condition) => {
-				// Extract the main condition type (e.g., "Allergies" from "Allergies (Peanuts)")
-				const mainCondition = condition.split('(')[0].trim();
-				conditions.add(mainCondition);
-			});
-		});
-		return Array.from(conditions).sort();
-	});
+	// Check if any filters are active
+	let hasActiveFilters = $derived(
+		searchQuery.trim() ||
+			filters.grade ||
+			filters.medicalCondition ||
+			filters.gender ||
+			filters.status
+	);
 
 	// Helper functions
 	function calculateAge(dateOfBirth: Date): number {
@@ -310,6 +169,7 @@
 	}
 
 	function clearFilters() {
+		searchQuery = '';
 		filters = {
 			grade: '',
 			medicalCondition: '',
@@ -332,18 +192,6 @@
 		// In real app, this would open edit modal or navigate to edit page
 		console.log('Edit student:', studentId);
 	}
-
-	// Statistics
-	let studentStats = $derived.by(() => ({
-		total: allStudents.length,
-		active: allStudents.filter((s) => s.isActive).length,
-		withMedicalConditions: allStudents.filter((s) => s.chronicHealthConditions.length > 0).length,
-		recentlyEnrolled: allStudents.filter((s) => {
-			const thirtyDaysAgo = new Date();
-			thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-			return s.enrollmentDate > thirtyDaysAgo;
-		}).length
-	}));
 </script>
 
 <svelte:head>
@@ -353,18 +201,6 @@
 
 <!-- Modern responsive students page layout -->
 <main class="mx-5 flex w-full max-w-none flex-1 flex-col">
-	<!-- Students header -->
-	<header class="border-b border-border bg-background px-4 py-6 md:px-6">
-		<div class="flex min-w-0 flex-col gap-2">
-			<h1 class="medical-typography-heading text-2xl text-foreground md:text-3xl lg:text-4xl">
-				Students
-			</h1>
-			<p class="medical-typography-body text-sm text-muted-foreground md:text-base lg:text-lg">
-				Manage student information and medical records
-			</p>
-		</div>
-	</header>
-
 	<div class="flex flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
 		<!-- Page Header with Stats -->
 		<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -410,10 +246,10 @@
 			<!-- Filter Controls -->
 			<div class="flex flex-wrap gap-3">
 				<!-- Grade Filter -->
-				<Select.Root type="single" bind:value={filters.grade}>
+				<Select.Root bind:value={filters.grade} type="single">
 					<Select.Trigger class="w-full md:w-[180px]">
 						<Funnel class="mr-2 size-4" />
-						All Grades
+						{filters.grade ? `${filters.grade} Grade` : 'All Grades'}
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">All Grades</Select.Item>
@@ -427,7 +263,7 @@
 				<Select.Root type="single" bind:value={filters.medicalCondition}>
 					<Select.Trigger class="w-full md:w-[200px]">
 						<Heart class="mr-2 size-4" />
-						Medical Conditions
+						{filters.medicalCondition || 'Medical Conditions'}
 					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">All Conditions</Select.Item>
@@ -439,8 +275,12 @@
 				</Select.Root>
 
 				<!-- Gender Filter -->
-				<Select.Root bind:value={filters.gender} type="single">
-					<Select.Trigger class="w-full md:w-[150px]">All Genders</Select.Trigger>
+				<Select.Root type="single" bind:value={filters.gender}>
+					<Select.Trigger class="w-full md:w-[150px]">
+						{filters.gender
+							? filters.gender.charAt(0).toUpperCase() + filters.gender.slice(1)
+							: 'All Genders'}
+					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">All Genders</Select.Item>
 						<Select.Item value="male">Male</Select.Item>
@@ -451,8 +291,12 @@
 				</Select.Root>
 
 				<!-- Status Filter -->
-				<Select.Root bind:value={filters.status} type="single">
-					<Select.Trigger class="w-full md:w-[140px]">All Status</Select.Trigger>
+				<Select.Root type="single" bind:value={filters.status}>
+					<Select.Trigger class="w-full md:w-[140px]">
+						{filters.status
+							? filters.status.charAt(0).toUpperCase() + filters.status.slice(1)
+							: 'All Status'}
+					</Select.Trigger>
 					<Select.Content>
 						<Select.Item value="">All Status</Select.Item>
 						<Select.Item value="active">Active</Select.Item>
@@ -461,16 +305,27 @@
 				</Select.Root>
 
 				<!-- Clear Filters Button -->
-				{#if filters.grade || filters.medicalCondition || filters.gender || filters.status}
+				{#if hasActiveFilters}
 					<Button variant="outline" onclick={clearFilters} class="w-full md:w-auto">
+						<X class="mr-2 size-4" />
 						Clear Filters
 					</Button>
 				{/if}
 			</div>
 
-			<!-- Results count -->
-			<div class="text-sm text-muted-foreground">
-				Showing {filteredStudents.length} of {allStudents.length} students
+			<!-- Results count and pagination info -->
+			<div
+				class="flex flex-col gap-2 text-sm text-muted-foreground md:flex-row md:items-center md:justify-between"
+			>
+				<div>
+					{#if hasActiveFilters}
+						Showing {filteredStudents.length} of {currentPageStudents.length} students on this page (filtered
+						from {studentStats.total} total)
+					{:else}
+						Showing {filteredStudents.length} students on page {pagination.page} of {pagination.totalPages}
+						({studentStats.total} total)
+					{/if}
+				</div>
 			</div>
 		</div>
 
@@ -488,35 +343,36 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#if isLoading}
+					{#if filteredStudents.length === 0}
 						<Table.Row>
 							<Table.Cell colspan={6} class="py-8 text-center">
-								<div class="flex items-center justify-center gap-2">
-									<div class="h-4 w-4 animate-spin rounded-full border-b-2 border-primary"></div>
-									Loading students...
-								</div>
-							</Table.Cell>
-						</Table.Row>
-					{:else if filteredStudents.length === 0}
-						<Table.Row>
-							<Table.Cell colspan={6} class="py-8 text-center">
-								{#if searchQuery || filters.grade || filters.medicalCondition || filters.gender || filters.status}
+								{#if hasActiveFilters}
 									<div class="flex flex-col items-center gap-2">
 										<Search class="size-8 text-muted-foreground" />
 										<div class="text-sm text-muted-foreground">
-											No students found matching your criteria
+											No students found matching your criteria on this page
 										</div>
 										<Button variant="outline" onclick={clearFilters} class="mt-2">
 											Clear Filters
 										</Button>
 									</div>
-								{:else}
+								{:else if currentPageStudents.length === 0}
 									<div class="flex flex-col items-center gap-2">
 										<GraduationCap class="size-8 text-muted-foreground" />
-										<div class="text-sm text-muted-foreground">No students have been added yet</div>
+										<div class="text-sm text-muted-foreground">No students on this page</div>
 										<Button onclick={handleAddStudent} class="mt-2">
 											<Plus class="mr-2 size-4" />
-											Add First Student
+											Add Student
+										</Button>
+									</div>
+								{:else}
+									<div class="flex flex-col items-center gap-2">
+										<Search class="size-8 text-muted-foreground" />
+										<div class="text-sm text-muted-foreground">
+											No students match your search on this page
+										</div>
+										<Button variant="outline" onclick={clearFilters} class="mt-2">
+											Clear Filters
 										</Button>
 									</div>
 								{/if}
@@ -602,5 +458,30 @@
 				</Table.Body>
 			</Table.Root>
 		</div>
+
+		<!-- Pagination -->
+		{#if !hasActiveFilters && pagination.totalPages > 1}
+			<div class="flex items-center justify-between">
+				<div class="text-sm text-muted-foreground">
+					Page {pagination.page} of {pagination.totalPages}
+				</div>
+
+				<div class="flex items-center gap-2">
+					{#if pagination.hasPrev}
+						<Button variant="outline" size="sm" href="/students/{pagination.page - 1}">
+							<ArrowLeft class="mr-2 size-4" />
+							Previous
+						</Button>
+					{/if}
+
+					{#if pagination.hasNext}
+						<Button variant="outline" size="sm" href="/students/{pagination.page + 1}">
+							Next
+							<ArrowRight class="ml-2 size-4" />
+						</Button>
+					{/if}
+				</div>
+			</div>
+		{/if}
 	</div>
 </main>

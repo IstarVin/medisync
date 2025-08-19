@@ -3,7 +3,6 @@
 	import MobileMenuButton from '$lib/components/mobile-menu-button.svelte';
 	import MobileNavigation from '$lib/components/mobile-navigation.svelte';
 	import SidebarNavigation from '$lib/components/sidebar-navigation.svelte';
-	import { Menu } from '@lucide/svelte';
 	import '../app.css';
 
 	let { children, data } = $props();
@@ -17,10 +16,6 @@
 
 	function closeMobileMenu() {
 		isMobileMenuOpen = false;
-	}
-
-	function toggleSidebar() {
-		isSidebarCollapsed = !isSidebarCollapsed;
 	}
 </script>
 
@@ -100,27 +95,7 @@
 		<!-- Mobile menu button for when sidebar is collapsed -->
 		<div class="flex items-center justify-between p-4 md:hidden">
 			<MobileMenuButton isOpen={isMobileMenuOpen} onToggle={toggleMobileMenu} />
-
-			<!-- Desktop sidebar toggle button for mobile when sidebar is collapsed -->
-			<button
-				onclick={toggleSidebar}
-				class="h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground md:hidden"
-				aria-label={isSidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
-			>
-				<Menu class="size-4" />
-			</button>
 		</div>
-
-		<!-- Desktop sidebar toggle button (only visible when sidebar is collapsed) -->
-		{#if isSidebarCollapsed}
-			<button
-				onclick={toggleSidebar}
-				class="fixed top-4 left-4 z-30 hidden h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground md:flex"
-				aria-label="Show sidebar"
-			>
-				<Menu class="size-4" />
-			</button>
-		{/if}
 
 		<!-- Main content area -->
 		<div class="flex flex-1 justify-center">
