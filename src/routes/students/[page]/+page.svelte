@@ -1,4 +1,5 @@
 <script lang="ts">
+	import AddStudentModal from '$lib/components/add-student-modal.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -54,6 +55,7 @@
 
 	// Client-side reactive state using Svelte 5 runes
 	let searchQuery = $state('');
+	let addStudentModalOpen = $state(false);
 	let filters = $state<FilterOptions>({
 		grade: '',
 		medicalCondition: '',
@@ -182,8 +184,7 @@
 	}
 
 	function handleAddStudent() {
-		// In real app, this would open a modal or navigate to add student page
-		console.log('Add student clicked');
+		addStudentModalOpen = true;
 	}
 
 	function handleViewStudent(studentId: string) {
@@ -488,3 +489,6 @@
 		{/if}
 	</div>
 </main>
+
+<!-- Add Student Modal -->
+<AddStudentModal bind:open={addStudentModalOpen} />
