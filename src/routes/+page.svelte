@@ -27,7 +27,19 @@
 </script>
 
 <!-- Modern responsive dashboard layout -->
-<main class="flex w-full max-w-none flex-1 flex-col md:max-w-6xl">
+<main class="mx-5 flex w-full flex-1 flex-col">
+	<!-- Dashboard header -->
+	<header class="border-b border-border bg-background px-4 py-6 md:px-6">
+		<div class="flex min-w-0 flex-col gap-2">
+			<h1 class="medical-typography-heading text-2xl text-foreground md:text-3xl lg:text-4xl">
+				Dashboard
+			</h1>
+			<p class="medical-typography-body text-sm text-muted-foreground md:text-base lg:text-lg">
+				Welcome back, Nurse Emily Carter
+			</p>
+		</div>
+	</header>
+
 	<!-- Visit summaries section with responsive spacing -->
 	<section class="py-6 md:py-8">
 		<div class="px-4 md:px-6">

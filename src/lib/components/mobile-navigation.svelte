@@ -3,13 +3,15 @@
 	import { fly } from 'svelte/transition';
 	import AppLogo from './app-logo.svelte';
 	import NavigationMenuItems from './navigation-menu-items.svelte';
+	import ThemeSwitcher from './theme-switcher.svelte';
 
 	interface Props {
 		isOpen?: boolean;
 		onClose?: () => void;
+		data?: any;
 	}
 
-	let { isOpen = false, onClose }: Props = $props();
+	let { isOpen = false, onClose, data }: Props = $props();
 
 	function handleNavClick() {
 		onClose?.();
@@ -52,17 +54,21 @@
 				<div class="flex items-center justify-between border-b border-background p-6">
 					<AppLogo />
 
-					<button
-						onclick={onClose}
-						class="group relative inline-flex h-8 w-8 items-center justify-center rounded-lg
-						       text-gray-700 transition-all duration-200 ease-out
-						       hover:bg-gray-100 hover:text-gray-900
-						       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500
-						       active:scale-95 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
-						aria-label="Close navigation menu"
-					>
-						<X class="h-4 w-4" />
-					</button>
+					<div class="flex items-center gap-3">
+						<ThemeSwitcher initialTheme={data?.theme} />
+
+						<button
+							onclick={onClose}
+							class="group relative inline-flex h-8 w-8 items-center justify-center rounded-lg
+							       text-gray-700 transition-all duration-200 ease-out
+							       hover:bg-gray-100 hover:text-gray-900
+							       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500
+							       active:scale-95 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+							aria-label="Close navigation menu"
+						>
+							<X class="h-4 w-4" />
+						</button>
+					</div>
 				</div>
 
 				<!-- Navigation content -->

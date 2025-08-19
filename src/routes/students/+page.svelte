@@ -352,14 +352,26 @@
 </svelte:head>
 
 <!-- Modern responsive students page layout -->
-<main class="flex w-full max-w-none flex-1 flex-col">
+<main class="mx-5 flex w-full max-w-none flex-1 flex-col">
+	<!-- Students header -->
+	<header class="border-b border-border bg-background px-4 py-6 md:px-6">
+		<div class="flex min-w-0 flex-col gap-2">
+			<h1 class="medical-typography-heading text-2xl text-foreground md:text-3xl lg:text-4xl">
+				Students
+			</h1>
+			<p class="medical-typography-body text-sm text-muted-foreground md:text-base lg:text-lg">
+				Manage student information and medical records
+			</p>
+		</div>
+	</header>
+
 	<div class="flex flex-1 flex-col gap-6 px-4 py-6 md:px-6 md:py-8">
 		<!-- Page Header with Stats -->
 		<div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 			<div class="flex flex-col gap-2">
-				<h1 class="medical-typography-heading text-2xl text-foreground md:text-3xl">
+				<h2 class="medical-typography-heading text-xl text-foreground md:text-2xl">
 					Student Management
-				</h1>
+				</h2>
 				<div class="flex flex-wrap gap-4 text-sm text-muted-foreground">
 					<div class="flex items-center gap-1">
 						<GraduationCap class="size-4" />
