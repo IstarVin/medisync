@@ -123,6 +123,9 @@
 		-webkit-font-smoothing: antialiased;
 		-moz-osx-font-smoothing: grayscale;
 	}
+	button {
+		@apply cursor-pointer;
+	}
 }
 
 @layer components {
