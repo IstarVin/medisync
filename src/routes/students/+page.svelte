@@ -27,24 +27,6 @@
 
 	// Types based on database schema
 	type StudentStatus = 'active' | 'inactive';
-	type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say';
-
-	type Student = {
-		id: string;
-		studentId: string;
-		firstName: string;
-		lastName: string;
-		email?: string | null;
-		dateOfBirth: Date;
-		gender: Gender;
-		grade: string;
-		section?: string | null;
-		chronicHealthConditions: string[];
-		currentMedications: string[];
-		enrollmentDate: Date;
-		isActive: boolean;
-		profilePicture?: string | null;
-	};
 
 	type FilterOptions = {
 		grade: string;
@@ -63,15 +45,13 @@
 		status: ''
 	});
 
+	// Client-side pagination state
+	let currentPage = $state(1);
+	let itemsPerPage = $state(25); // Items per page for client-side pagination
+	let itemsPerPageStr = $state('25'); // String version for the select component
+
 	// Get data from load function
-	let allStudents = $state<Student[]>(
-		data.allStudents.map((student) => ({
-			...student,
-			dateOfBirth: new Date(student.dateOfBirth),
-			enrollmentDate: new Date(student.enrollmentDate)
-		}))
-	);
-	let currentPageStudents = $state<Student[]>(
+	let allStudents = $derived(
 		data.students.map((student) => ({
 			...student,
 			dateOfBirth: new Date(student.dateOfBirth),
@@ -79,14 +59,13 @@
 		}))
 	);
 
-	let studentStats = $state(data.stats);
-	let uniqueGrades = $state(data.filterOptions.grades);
-	let uniqueMedicalConditions = $state(data.filterOptions.medicalConditions);
-	let pagination = $state(data.pagination);
+	let studentStats = $derived(data.stats);
+	let uniqueGrades = $derived(data.filterOptions.grades);
+	let uniqueMedicalConditions = $derived(data.filterOptions.medicalConditions);
 
 	// Client-side filtering logic
 	let filteredStudents = $derived.by(() => {
-		let students = currentPageStudents;
+		let students = allStudents;
 
 		// Apply search filter
 		if (searchQuery.trim()) {
@@ -130,6 +109,46 @@
 		}
 
 		return students;
+	});
+
+	// Client-side pagination logic
+	let paginatedStudents = $derived.by(() => {
+		const startIndex = (currentPage - 1) * itemsPerPage;
+		const endIndex = startIndex + itemsPerPage;
+		return filteredStudents.slice(startIndex, endIndex);
+	});
+
+	// Pagination info
+	let paginationInfo = $derived.by(() => {
+		const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+		return {
+			currentPage,
+			totalPages,
+			totalItems: filteredStudents.length,
+			hasNext: currentPage < totalPages,
+			hasPrev: currentPage > 1,
+			startIndex: (currentPage - 1) * itemsPerPage + 1,
+			endIndex: Math.min(currentPage * itemsPerPage, filteredStudents.length)
+		};
+	});
+
+	// Reset to first page when filters change
+	$effect(() => {
+		// Watch for changes in search query or filters
+		searchQuery;
+		filters.grade;
+		filters.medicalCondition;
+		filters.gender;
+		filters.status;
+
+		// Reset to first page
+		currentPage = 1;
+	});
+
+	// Reset to first page when items per page changes
+	$effect(() => {
+		itemsPerPage = parseInt(itemsPerPageStr);
+		currentPage = 1;
 	});
 
 	// Check if any filters are active
@@ -181,6 +200,7 @@
 			gender: '',
 			status: ''
 		};
+		currentPage = 1;
 	}
 
 	function handleAddStudent() {
@@ -195,6 +215,25 @@
 	function handleEditStudent(studentId: string) {
 		// In real app, this would open edit modal or navigate to edit page
 		console.log('Edit student:', studentId);
+	}
+
+	// Pagination handlers
+	function goToPage(page: number) {
+		if (page >= 1 && page <= paginationInfo.totalPages) {
+			currentPage = page;
+		}
+	}
+
+	function nextPage() {
+		if (paginationInfo.hasNext) {
+			currentPage++;
+		}
+	}
+
+	function prevPage() {
+		if (paginationInfo.hasPrev) {
+			currentPage--;
+		}
 	}
 </script>
 
@@ -244,6 +283,8 @@
 					placeholder="Search students by name, ID, or email..."
 					bind:value={searchQuery}
 					class="pl-10"
+					id="searchInput"
+					name="searchInput"
 				/>
 			</div>
 
@@ -273,7 +314,7 @@
 						<Select.Item value="">All Conditions</Select.Item>
 						<Select.Item value="none">No Conditions</Select.Item>
 						{#each uniqueMedicalConditions as condition}
-							<Select.Item value={condition}>{condition}</Select.Item>
+							<Select.Item value={condition}>{toTitleCase(condition)}</Select.Item>
 						{/each}
 					</Select.Content>
 				</Select.Root>
@@ -323,12 +364,35 @@
 			>
 				<div>
 					{#if hasActiveFilters}
-						Showing {filteredStudents.length} of {currentPageStudents.length} students on this page (filtered
-						from {studentStats.total} total)
+						Showing {paginationInfo.startIndex}-{paginationInfo.endIndex} of {filteredStudents.length}
+						filtered students (from {studentStats.total} total)
 					{:else}
-						Showing {filteredStudents.length} students on page {pagination.page} of {pagination.totalPages}
-						({studentStats.total} total)
+						Showing {paginationInfo.startIndex}-{paginationInfo.endIndex} of {studentStats.total} students
 					{/if}
+				</div>
+
+				<div class="flex items-center gap-4">
+					{#if paginationInfo.totalPages > 1}
+						<div class="text-sm">
+							Page {paginationInfo.currentPage} of {paginationInfo.totalPages}
+						</div>
+					{/if}
+
+					<!-- Items per page selector -->
+					<div class="flex items-center gap-2">
+						<span class="text-sm">Show:</span>
+						<Select.Root bind:value={itemsPerPageStr} type="single">
+							<Select.Trigger class="w-20">
+								{itemsPerPage}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="10">10</Select.Item>
+								<Select.Item value="25">25</Select.Item>
+								<Select.Item value="50">50</Select.Item>
+								<Select.Item value="100">100</Select.Item>
+							</Select.Content>
+						</Select.Root>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -347,34 +411,32 @@
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
-					{#if filteredStudents.length === 0}
+					{#if paginatedStudents.length === 0}
 						<Table.Row>
 							<Table.Cell colspan={6} class="py-8 text-center">
 								{#if hasActiveFilters}
 									<div class="flex flex-col items-center gap-2">
 										<Search class="size-8 text-muted-foreground" />
 										<div class="text-sm text-muted-foreground">
-											No students found matching your criteria on this page
+											No students found matching your criteria
 										</div>
 										<Button variant="outline" onclick={clearFilters} class="mt-2">
 											Clear Filters
 										</Button>
 									</div>
-								{:else if currentPageStudents.length === 0}
+								{:else if allStudents.length === 0}
 									<div class="flex flex-col items-center gap-2">
 										<GraduationCap class="size-8 text-muted-foreground" />
-										<div class="text-sm text-muted-foreground">No students on this page</div>
+										<div class="text-sm text-muted-foreground">No students enrolled yet</div>
 										<Button onclick={handleAddStudent} class="mt-2">
 											<Plus class="mr-2 size-4" />
-											Add Student
+											Add First Student
 										</Button>
 									</div>
 								{:else}
 									<div class="flex flex-col items-center gap-2">
 										<Search class="size-8 text-muted-foreground" />
-										<div class="text-sm text-muted-foreground">
-											No students match your search on this page
-										</div>
+										<div class="text-sm text-muted-foreground">No students match your search</div>
 										<Button variant="outline" onclick={clearFilters} class="mt-2">
 											Clear Filters
 										</Button>
@@ -383,7 +445,7 @@
 							</Table.Cell>
 						</Table.Row>
 					{:else}
-						{#each filteredStudents as student (student.id)}
+						{#each paginatedStudents as student (student.id)}
 							<Table.Row class="hover:bg-muted/50">
 								<Table.Cell>
 									<div class="flex items-center gap-3">
@@ -464,22 +526,55 @@
 		</div>
 
 		<!-- Pagination -->
-		{#if !hasActiveFilters && pagination.totalPages > 1}
+		{#if paginationInfo.totalPages > 1}
 			<div class="flex items-center justify-between">
 				<div class="text-sm text-muted-foreground">
-					Page {pagination.page} of {pagination.totalPages}
+					Page {paginationInfo.currentPage} of {paginationInfo.totalPages}
+					({paginationInfo.totalItems}
+					{hasActiveFilters ? 'filtered' : 'total'} students)
 				</div>
 
 				<div class="flex items-center gap-2">
-					{#if pagination.hasPrev}
-						<Button variant="outline" size="sm" href="/students/{pagination.page - 1}">
+					{#if paginationInfo.hasPrev}
+						<Button variant="outline" size="sm" onclick={prevPage}>
 							<ArrowLeft class="mr-2 size-4" />
 							Previous
 						</Button>
 					{/if}
 
-					{#if pagination.hasNext}
-						<Button variant="outline" size="sm" href="/students/{pagination.page + 1}">
+					<!-- Page numbers for larger screens -->
+					<div class="hidden items-center gap-1 md:flex">
+						{#each Array.from({ length: Math.min(5, paginationInfo.totalPages) }, (_, i) => {
+							const totalPages = paginationInfo.totalPages;
+							const current = paginationInfo.currentPage;
+
+							if (totalPages <= 5) {
+								return i + 1;
+							}
+
+							if (current <= 3) {
+								return i + 1;
+							}
+
+							if (current > totalPages - 3) {
+								return totalPages - 4 + i;
+							}
+
+							return current - 2 + i;
+						}) as pageNum}
+							<Button
+								variant={pageNum === paginationInfo.currentPage ? 'default' : 'outline'}
+								size="sm"
+								onclick={() => goToPage(pageNum)}
+								class="w-10"
+							>
+								{pageNum}
+							</Button>
+						{/each}
+					</div>
+
+					{#if paginationInfo.hasNext}
+						<Button variant="outline" size="sm" onclick={nextPage}>
 							Next
 							<ArrowRight class="ml-2 size-4" />
 						</Button>

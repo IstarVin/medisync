@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { invalidate } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Calendar } from '$lib/components/ui/calendar/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
@@ -8,7 +9,7 @@
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
-	import { cn } from '$lib/utils.js';
+	import { cn, toTitleCase } from '$lib/utils.js';
 	import { DateFormatter, getLocalTimeZone, today, type DateValue } from '@internationalized/date';
 	import { CalendarIcon, Loader2 } from '@lucide/svelte';
 
@@ -24,21 +25,7 @@
 	let errors = $state<Record<string, string[]>>({});
 
 	// Grade options
-	const gradeOptions = [
-		'Kindergarten',
-		'Grade 1',
-		'Grade 2',
-		'Grade 3',
-		'Grade 4',
-		'Grade 5',
-		'Grade 6',
-		'Grade 7',
-		'Grade 8',
-		'Grade 9',
-		'Grade 10',
-		'Grade 11',
-		'Grade 12'
-	];
+	const gradeOptions = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
 
 	// Relationship options
 	const relationshipOptions = [
@@ -129,25 +116,10 @@
 		dateOfBirth = undefined;
 		errors = {};
 	}
-
-	// Handle form submission
-	function handleSubmit() {
-		return ({ result }: any) => {
-			submitting = false;
-
-			if (result.type === 'failure') {
-				errors = result.data?.errors || {};
-			} else if (result.type === 'success') {
-				open = false;
-				resetForm();
-				// Optionally show success message
-			}
-		};
-	}
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
-	<Dialog.Content class="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden">
+	<Dialog.Content class="flex max-h-[90vh] flex-col overflow-hidden" style="max-width: 768px;">
 		<Dialog.Header>
 			<Dialog.Title>Add New Student</Dialog.Title>
 			<Dialog.Description>
@@ -161,9 +133,19 @@
 				action="?/addStudent"
 				use:enhance={() => {
 					submitting = true;
-					return handleSubmit();
+					return async ({ result }) => {
+						submitting = false;
+
+						if (result.type === 'failure') {
+							errors = (result.data?.errors as any) || {};
+						} else if (result.type === 'success') {
+							await invalidate('app:students');
+							open = false;
+							// Optionally show success message
+						}
+					};
 				}}
-				class="space-y-6"
+				class="w-full space-y-6"
 			>
 				<!-- Personal Information Section -->
 				<div class="space-y-4">
@@ -188,9 +170,11 @@
 
 						<!-- Grade -->
 						<div class="space-y-2">
-							<Label for="grade">Grade *</Label>
+							<Label>Grade *</Label>
 							<Select.Root bind:value={formData.grade} type="single">
-								<Select.Trigger class="w-full">Select grade</Select.Trigger>
+								<Select.Trigger class="w-full">
+									{formData.grade ? formData.grade : 'Select grade'}
+								</Select.Trigger>
 								<Select.Content>
 									{#each gradeOptions as grade}
 										<Select.Item value={grade}>{grade}</Select.Item>
@@ -275,6 +259,7 @@
 								bind:value={formData.email}
 								placeholder="Enter email (optional)"
 								class="w-full"
+								autocomplete="email"
 							/>
 							{#if errors.email}
 								<p class="text-sm text-destructive">{errors.email[0]}</p>
@@ -283,9 +268,9 @@
 
 						<!-- Date of Birth -->
 						<div class="space-y-2">
-							<Label for="dateOfBirth">Date of Birth *</Label>
+							<Label>Date of Birth *</Label>
 							<Popover.Root>
-								<Popover.Trigger>
+								<Popover.Trigger class="w-full justify-start">
 									{#snippet child({ props })}
 										<Button
 											variant="outline"
@@ -308,6 +293,7 @@
 										bind:value={dateOfBirth}
 										maxValue={today(getLocalTimeZone())}
 										initialFocus
+										captionLayout="dropdown"
 									/>
 								</Popover.Content>
 							</Popover.Root>
@@ -319,9 +305,11 @@
 
 						<!-- Gender -->
 						<div class="space-y-2 md:col-span-2">
-							<Label for="gender">Gender *</Label>
+							<Label>Gender *</Label>
 							<Select.Root bind:value={formData.gender} type="single">
-								<Select.Trigger class="w-full">Select gender</Select.Trigger>
+								<Select.Trigger class="w-full">
+									{formData.gender ? toTitleCase(formData.gender) : 'Select gender'}
+								</Select.Trigger>
 								<Select.Content>
 									{#each genderOptions as gender}
 										<Select.Item value={gender.value}>{gender.label}</Select.Item>
@@ -345,6 +333,7 @@
 							placeholder="Enter full address (optional)"
 							class="w-full"
 							rows={2}
+							autocomplete="address-line1"
 						/>
 						{#if errors.address}
 							<p class="text-sm text-destructive">{errors.address[0]}</p>
@@ -437,9 +426,13 @@
 
 						<!-- Emergency Contact Relationship -->
 						<div class="space-y-2">
-							<Label for="emergencyContactRelationship">Relationship *</Label>
+							<Label>Relationship *</Label>
 							<Select.Root bind:value={formData.emergencyContactRelationship} type="single">
-								<Select.Trigger class="w-full">Select relationship</Select.Trigger>
+								<Select.Trigger class="w-full">
+									{formData.emergencyContactRelationship
+										? toTitleCase(formData.emergencyContactRelationship)
+										: 'Select relationship'}
+								</Select.Trigger>
 								<Select.Content>
 									{#each relationshipOptions as relationship}
 										<Select.Item value={relationship.value}>{relationship.label}</Select.Item>
