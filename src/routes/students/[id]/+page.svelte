@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import NewVisitModal from '$lib/components/new-visit-modal.svelte';
 	import { Avatar, AvatarFallback, AvatarImage } from '$lib/components/ui/avatar/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -30,6 +31,9 @@
 	let emergencyContacts = $derived(data.emergencyContacts);
 	let recentVisits = $derived(data.recentVisits);
 
+	// Modal state
+	let newVisitModalOpen = $state(false);
+
 	// Helper functions
 	function calculateAge(dateOfBirth: string): number {
 		const today = new Date();
@@ -40,14 +44,6 @@
 			age--;
 		}
 		return age;
-	}
-
-	function formatDate(dateString: string): string {
-		return new Date(dateString).toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric'
-		});
 	}
 
 	function getRelationshipIcon(relationship: string) {
@@ -66,7 +62,7 @@
 
 	// Actions
 	function handleBack() {
-		goto('/students');
+		history.back();
 	}
 
 	function handleEdit() {
@@ -76,8 +72,8 @@
 	}
 
 	function handleNewVisit() {
-		// Navigate to create new clinic visit
-		goto(`/visits/new?studentId=${student.id}`);
+		// Open the new visit modal
+		newVisitModalOpen = true;
 	}
 
 	function handleViewVisit(visitId: string) {
@@ -347,3 +343,6 @@
 		</div>
 	</div>
 </main>
+
+<!-- New Visit Modal -->
+<NewVisitModal bind:open={newVisitModalOpen} {student} availableNurses={data.availableNurses} />

@@ -7,7 +7,7 @@
 </script>
 
 <!-- Logo section -->
-<div class="flex items-center gap-3">
+<a class="flex items-center gap-3" href="/">
 	<div
 		class="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg"
 	>
@@ -23,4 +23,4 @@
 			<p class="text-sm text-gray-500 dark:text-gray-400">Clinic Management</p>
 		{/if}
 	</div>
-</div>
+</a>

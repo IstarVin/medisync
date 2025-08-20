@@ -1,8 +1,8 @@
 import { db } from '$lib/server/db/index.js';
 import { clinicVisits, emergencyContacts, students, users } from '$lib/server/db/schema.js';
-import { error, isHttpError } from '@sveltejs/kit';
+import { error, fail, isHttpError } from '@sveltejs/kit';
 import { desc, eq } from 'drizzle-orm';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const studentId = params.id;
@@ -95,6 +95,24 @@ export const load: PageServerLoad = async ({ params }) => {
 			lastVisit: recentVisits[0]?.checkInTime || null
 		};
 
+		// Fetch available nurses for the form
+		const availableNurses = await db
+			.select({
+				id: users.id,
+				name: users.firstName,
+				lastName: users.lastName,
+				role: users.role
+			})
+			.from(users)
+			.where(eq(users.role, 'nurse'))
+			.orderBy(users.firstName, users.lastName);
+
+		// Format nurse names for display
+		const formattedNurses = availableNurses.map((nurse) => ({
+			id: nurse.id,
+			name: `${nurse.name} ${nurse.lastName}`
+		}));
+
 		return {
 			student: {
 				...student,
@@ -113,7 +131,8 @@ export const load: PageServerLoad = async ({ params }) => {
 				checkInTime: visit.checkInTime.toISOString(),
 				checkOutTime: visit.checkOutTime?.toISOString() || null
 			})),
-			visitStats
+			visitStats,
+			availableNurses: formattedNurses
 		};
 	} catch (err) {
 		console.error('Error loading student:', err);
@@ -125,5 +144,122 @@ export const load: PageServerLoad = async ({ params }) => {
 		throw error(500, {
 			message: 'Failed to load student information'
 		});
+	}
+};
+
+export const actions: Actions = {
+	createVisit: async ({ request, params }) => {
+		try {
+			const formData = await request.formData();
+			const studentId = params.id;
+
+			// Extract visit data
+			const visitData = {
+				nurseId: formData.get('nurseId') as string,
+				visitType: formData.get('visitType') as string,
+				severity: formData.get('severity') as string,
+				isEmergency: formData.get('isEmergency') === 'true',
+				reason: formData.get('reason') as string,
+				details: formData.get('details') as string,
+				medicationsGiven: formData.get('medicationsGiven') as string
+			};
+
+			// Validate required fields
+			if (!visitData.reason.trim()) {
+				return fail(400, {
+					error: 'Reason for visit is required'
+				});
+			}
+
+			if (!visitData.nurseId) {
+				return fail(400, {
+					error: 'Nurse selection is required'
+				});
+			}
+
+			// Validate visit type
+			const validVisitTypes = [
+				'emergency',
+				'illness',
+				'injury',
+				'medication',
+				'checkup',
+				'mental_health',
+				'other'
+			];
+			if (!validVisitTypes.includes(visitData.visitType)) {
+				return fail(400, {
+					error: 'Invalid visit type'
+				});
+			}
+
+			// Validate severity
+			const validSeverityLevels = ['low', 'medium', 'high', 'critical'];
+			if (!validSeverityLevels.includes(visitData.severity)) {
+				return fail(400, {
+					error: 'Invalid severity level'
+				});
+			}
+
+			// Verify student exists
+			const [student] = await db
+				.select({ id: students.id })
+				.from(students)
+				.where(eq(students.studentId, studentId))
+				.limit(1);
+
+			if (!student) {
+				return fail(400, {
+					error: 'Student not found'
+				});
+			}
+
+			// Verify nurse exists
+			const [nurse] = await db
+				.select({ id: users.id })
+				.from(users)
+				.where(eq(users.id, visitData.nurseId))
+				.limit(1);
+
+			if (!nurse) {
+				return fail(400, {
+					error: 'Selected nurse not found'
+				});
+			}
+
+			// Create the visit
+			const [newVisit] = await db
+				.insert(clinicVisits)
+				.values({
+					studentId: student.id,
+					attendedById: visitData.nurseId,
+					visitType: visitData.visitType as
+						| 'emergency'
+						| 'illness'
+						| 'injury'
+						| 'medication'
+						| 'checkup'
+						| 'mental_health'
+						| 'other',
+					severity: visitData.severity as 'low' | 'medium' | 'high' | 'critical',
+					isEmergency: visitData.isEmergency,
+					chiefComplaint: visitData.reason,
+					symptoms: visitData.details || null,
+					medicationGiven: visitData.medicationsGiven || null,
+					status: 'active',
+					parentNotified: visitData.isEmergency // Auto-notify parents for emergency visits
+				})
+				.returning({ id: clinicVisits.id });
+
+			return {
+				success: true,
+				visitId: newVisit.id
+			};
+		} catch (error) {
+			console.error('Error creating visit:', error);
+			return fail(500, {
+				error: 'Failed to create visit. Please try again.'
+			});
+		}
 	}
 };
