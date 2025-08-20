@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { Button } from '$lib/components/ui/button/index.js';
 	import Label from '$lib/components/ui/label/label.svelte';
 	import Switch from '$lib/components/ui/switch/switch.svelte';
 	import VisitSummaryCards from '$lib/components/visit-summary-cards.svelte';
@@ -61,16 +62,18 @@
 	</section>
 
 	<!-- Recent visits section with responsive layout -->
-	<section class="pb-6 md:pb-8">
-		<div class="px-4 md:px-6">
-			<h2 class="medical-typography-heading mb-4 text-lg text-foreground md:text-xl lg:text-2xl">
+	<section class=" pb-6 md:pb-8">
+		<div class="mb-4 flex items-center justify-between px-4 md:px-6">
+			<h2 class="medical-typography-heading text-lg text-foreground md:text-xl lg:text-2xl">
 				Recent Student Visits
 			</h2>
+			<Button variant="outline" href="/visits">View All</Button>
 		</div>
 
 		<div class="px-4 md:px-6">
 			<VisitsTable
 				visits={data.recentVisits}
+				showVisitNumber={false}
 				maxHeight="500px"
 				emptyStateTitle="No recent visits"
 				emptyStateDescription="When students visit the clinic, their information will appear here. The most recent visits are displayed for quick access."

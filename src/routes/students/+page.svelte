@@ -1,13 +1,14 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import StudentFormModal from '$lib/components/student-form-modal.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { toTitleCase } from '$lib/utils';
 	import {
-		AlertCircle,
 		ArrowLeft,
 		ArrowRight,
 		Edit,
@@ -288,20 +289,6 @@
 				<h2 class="medical-typography-heading text-xl text-foreground md:text-2xl">
 					Student Management
 				</h2>
-				<!-- <div class="flex flex-wrap gap-4 text-sm text-muted-foreground"> -->
-				<!-- <div class="flex items-center gap-1">
-						<GraduationCap class="size-4" />
-						<span>{studentStats.total} Total Students</span>
-					</div>
-					<div class="flex items-center gap-1">
-						<Heart class="size-4" />
-						<span>{studentStats.withMedicalConditions} With Medical Conditions</span>
-					</div> -->
-				<!-- <div class="flex items-center gap-1">
-						<UserPlus class="size-4" />
-						<span>{studentStats.recentlyEnrolled} Recently Enrolled</span>
-					</div> -->
-				<!-- </div> -->
 			</div>
 
 			<Button onclick={handleAddStudent} class="w-full md:w-auto">
@@ -483,7 +470,12 @@
 						</Table.Row>
 					{:else}
 						{#each paginatedStudents as student (student.id)}
-							<Table.Row class="hover:bg-muted/50">
+							<Table.Row
+								class="cursor-pointer hover:bg-muted/50"
+								onclick={() => {
+									goto('/students/' + student.studentId);
+								}}
+							>
 								<Table.Cell>
 									<div class="flex items-center gap-3">
 										<div
@@ -513,24 +505,22 @@
 								</Table.Cell>
 								<Table.Cell>
 									<div class="flex items-center gap-2">
-										{#if student.chronicHealthConditions.length === 0}
-											<Badge variant="secondary">None</Badge>
-										{:else}
-											{@const severity = getMedicalSeverity(student.chronicHealthConditions)}
-											<Badge
-												variant={severity === 'high'
-													? 'destructive'
-													: severity === 'medium'
-														? 'default'
-														: 'secondary'}
-												class="flex items-center gap-1"
-											>
-												{#if severity === 'high'}
-													<AlertCircle class="size-3" />
-												{/if}
-												{formatConditions(student.chronicHealthConditions)}
-											</Badge>
-										{/if}
+										<Tooltip.Provider delayDuration={300}>
+											<Tooltip.Root>
+												<Tooltip.Trigger>
+													{#if student.chronicHealthConditions.length === 0}
+														<Badge variant="secondary">None</Badge>
+													{:else}
+														<Badge variant="outline" class="flex items-center gap-1">
+															{formatConditions(student.chronicHealthConditions)}
+														</Badge>
+													{/if}</Tooltip.Trigger
+												>
+												<Tooltip.Content>
+													{student.chronicHealthConditions.map(toTitleCase).join(', ')}
+												</Tooltip.Content>
+											</Tooltip.Root>
+										</Tooltip.Provider>
 									</div>
 								</Table.Cell>
 								<Table.Cell>
@@ -547,7 +537,10 @@
 										<Button
 											variant="ghost"
 											size="icon"
-											onclick={() => handleEditStudent(student.id)}
+											onclick={(e) => {
+												e.stopPropagation();
+												handleEditStudent(student.id);
+											}}
 											class="size-8"
 										>
 											<Edit class="size-4" />

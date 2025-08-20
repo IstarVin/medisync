@@ -360,10 +360,7 @@
 		</div>
 
 		<!-- Visits Table -->
-		<VisitsTable
-			visits={paginatedVisits}
-			onViewVisit={(visitId) => (window.location.href = `/visits/${visitId}`)}
-		/>
+		<VisitsTable visits={paginatedVisits} />
 
 		<!-- Empty state for filtered results -->
 		{#if paginatedVisits.length === 0 && hasActiveFilters}

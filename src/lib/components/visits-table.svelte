@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -64,18 +65,7 @@
 		class: className = ''
 	}: Props = $props();
 
-	// Helper functions
-	function formatDateTime(date: Date | string): string {
-		const dateObj = typeof date === 'string' ? new Date(date) : date;
-		return new Intl.DateTimeFormat('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit',
-			hour12: true
-		}).format(dateObj);
-	}
+	showActions = false;
 
 	function formatDate(date: Date | string): string {
 		const dateObj = typeof date === 'string' ? new Date(date) : date;
@@ -189,7 +179,10 @@
 					</Table.Header>
 					<Table.Body>
 						{#each visits as visit}
-							<Table.Row class="transition-colors hover:bg-muted/50">
+							<Table.Row
+								class="cursor-pointer transition-colors hover:bg-muted/50"
+								onclick={() => goto('/visits/' + visit.id)}
+							>
 								{#if showVisitNumber}
 									<Table.Cell class="font-medium text-foreground">
 										#{visit.visitNumber || visit.id.slice(-4)}
@@ -243,12 +236,7 @@
 								</Table.Cell>
 								{#if showActions}
 									<Table.Cell>
-										<Button
-											variant="ghost"
-											size="sm"
-											onclick={() => handleViewVisit(visit.id)}
-											class="h-8 w-8 p-0"
-										>
+										<Button variant="ghost" size="sm" href="/visits/{visit.id}" class="h-8 w-8 p-0">
 											<Eye class="size-4" />
 											<span class="sr-only">View visit details</span>
 										</Button>

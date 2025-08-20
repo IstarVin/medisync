@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
+	import { ChevronRight } from '@lucide/svelte';
 
 	interface VisitSummary {
 		title: string;
@@ -40,20 +41,7 @@
 						       active:scale-[0.98]"
 					>
 						{summary.actionText}
-						<!-- Arrow icon -->
-						<svg
-							class="ml-1 h-3 w-3 transition-transform duration-150 group-hover:translate-x-0.5"
-							fill="none"
-							stroke="currentColor"
-							viewBox="0 0 24 24"
-						>
-							<path
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								stroke-width="2"
-								d="M9 5l7 7-7 7"
-							/>
-						</svg>
+						<ChevronRight class="size-4" />
 					</a>
 				{:else}
 					<p class="text-sm font-medium text-muted-foreground">
