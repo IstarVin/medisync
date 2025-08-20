@@ -22,7 +22,7 @@ export class ServerEvents {
 
 	emitEvent(event: string, data: object) {
 		Object.values(this.emitters).forEach((emit) => {
-			emit(event, JSON.stringify(data));
+			emit(event, JSON.stringify({ ...data, rand: crypto.randomUUID() }));
 		});
 	}
 }
