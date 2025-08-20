@@ -247,12 +247,12 @@
 									<div class="flex items-center gap-2">
 										<RelationshipIcon class="size-3 text-muted-foreground" />
 										<span class="text-xs font-medium">{contact.name}</span>
-										{#if contact.isPrimary}
-											<Badge variant="default" class="px-1 py-0 text-xs">Primary</Badge>
-										{/if}
+										<Badge variant="default" class="px-1 py-0 text-xs">
+											{toTitleCase(contact.relationship)}
+										</Badge>
 									</div>
 									<div class="space-y-0.5 text-xs text-muted-foreground">
-										<div class="capitalize">{contact.relationship}</div>
+										<!-- <div class="capitalize">{contact.relationship}</div> -->
 										<div class="flex items-center gap-1">
 											<Phone class="size-2.5" />
 											<a href="tel:{contact.phoneNumber}" class="hover:text-foreground">
@@ -315,7 +315,7 @@
 								{#if student.currentMedications.length > 0}
 									<div class="flex flex-wrap gap-2">
 										{#each student.currentMedications as medication}
-											<Badge variant="secondary" class="text-sm">{medication}</Badge>
+											<Badge variant="secondary" class="text-sm">{toTitleCase(medication)}</Badge>
 										{/each}
 									</div>
 								{:else}

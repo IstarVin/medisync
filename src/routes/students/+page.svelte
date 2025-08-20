@@ -34,42 +34,36 @@
 		status: StudentStatus | '';
 	};
 
+	type EmergencyContact = {
+		id: string;
+		name: string;
+		relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other' | 'adviser';
+		phoneNumber: string;
+		alternatePhone: string | null;
+		email: string | null;
+		address: string | null;
+		isPrimary: boolean;
+		priority: number;
+	};
+
 	type Student = {
 		id: string;
 		studentId: string;
 		firstName: string;
 		lastName: string;
-		middleName?: string;
-		email?: string;
+		middleName: string | null;
+		email: string | null;
 		dateOfBirth: Date | string;
 		gender: 'male' | 'female' | 'other' | 'prefer_not_to_say';
 		grade: string;
-		section?: string;
-		address?: string;
+		section: string | null;
+		address: string | null;
 		chronicHealthConditions: string[];
 		currentMedications: string[];
-		healthHistory?: string;
-		emergencyContactName?: string;
-		emergencyContactRelationship?:
-			| 'parent'
-			| 'guardian'
-			| 'sibling'
-			| 'grandparent'
-			| 'other'
-			| 'adviser';
-		emergencyContactPhone?: string;
-		emergencyContactAlternatePhone?: string;
-		emergencyContactEmail?: string;
-		emergencyContactAddress?: string;
-	};
-
-	type EmergencyContact = {
-		name: string;
-		relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other' | 'adviser';
-		phoneNumber: string;
-		alternatePhone?: string;
-		email?: string;
-		address?: string;
+		healthHistory: string | null;
+		enrollmentDate: Date | string;
+		isActive: boolean;
+		emergencyContacts: EmergencyContact[];
 	};
 
 	// Client-side reactive state using Svelte 5 runes
@@ -77,7 +71,7 @@
 	let studentFormModalOpen = $state(false);
 	let modalMode = $state<'add' | 'edit'>('add');
 	let selectedStudent = $state<Student | null>(null);
-	let selectedEmergencyContact = $state<EmergencyContact | null>(null);
+	let selectedEmergencyContacts = $state<EmergencyContact[]>([]);
 	let filters = $state<FilterOptions>({
 		grade: '',
 		medicalCondition: '',
@@ -246,7 +240,7 @@
 	function handleAddStudent() {
 		modalMode = 'add';
 		selectedStudent = null;
-		selectedEmergencyContact = null;
+		selectedEmergencyContacts = [];
 		studentFormModalOpen = true;
 	}
 
@@ -254,39 +248,8 @@
 		const student = allStudents.find((s) => s.id === studentId);
 		if (student) {
 			modalMode = 'edit';
-
-			// Map the student data to the expected format
-			selectedStudent = {
-				id: student.id,
-				studentId: student.studentId,
-				firstName: student.firstName,
-				lastName: student.lastName,
-				middleName: student.middleName || undefined,
-				email: student.email || undefined,
-				dateOfBirth: student.dateOfBirth,
-				gender: student.gender,
-				grade: student.grade,
-				section: student.section || undefined,
-				address: student.address || undefined,
-				chronicHealthConditions: student.chronicHealthConditions,
-				currentMedications: student.currentMedications,
-				healthHistory: student.healthHistory || undefined
-			};
-
-			// Map the emergency contact data
-			if (student.emergencyContactName) {
-				selectedEmergencyContact = {
-					name: student.emergencyContactName,
-					relationship: student.emergencyContactRelationship!,
-					phoneNumber: student.emergencyContactPhone!,
-					alternatePhone: student.emergencyContactAlternatePhone || undefined,
-					email: student.emergencyContactEmail || undefined,
-					address: student.emergencyContactAddress || undefined
-				};
-			} else {
-				selectedEmergencyContact = null;
-			}
-
+			selectedStudent = student;
+			selectedEmergencyContacts = student.emergencyContacts || [];
 			studentFormModalOpen = true;
 		}
 	}
@@ -665,6 +628,6 @@
 		bind:open={studentFormModalOpen}
 		mode={modalMode}
 		student={selectedStudent}
-		emergencyContact={selectedEmergencyContact}
+		emergencyContacts={selectedEmergencyContacts}
 	/>
 {/if}

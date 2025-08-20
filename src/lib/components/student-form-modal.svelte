@@ -17,46 +17,38 @@
 		today,
 		type DateValue
 	} from '@internationalized/date';
-	import { CalendarIcon, Loader2 } from '@lucide/svelte';
+	import { CalendarIcon, Loader2, Plus, Trash2 } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
 	// Types
+	type EmergencyContact = {
+		id?: string;
+		name: string;
+		relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other' | 'adviser';
+		phoneNumber: string;
+		alternatePhone?: string | null;
+		email?: string | null;
+		address?: string | null;
+		isPrimary?: boolean;
+		priority?: number;
+	};
+
 	type Student = {
 		id?: string;
 		studentId: string;
 		firstName: string;
 		lastName: string;
-		middleName?: string;
-		email?: string;
+		middleName?: string | null;
+		email?: string | null;
 		dateOfBirth: Date | string;
 		gender: 'male' | 'female' | 'other' | 'prefer_not_to_say';
 		grade: string;
-		section?: string;
-		address?: string;
+		section?: string | null;
+		address?: string | null;
 		chronicHealthConditions: string[];
 		currentMedications: string[];
-		healthHistory?: string;
-		emergencyContactName?: string;
-		emergencyContactRelationship?:
-			| 'parent'
-			| 'guardian'
-			| 'sibling'
-			| 'grandparent'
-			| 'other'
-			| 'adviser';
-		emergencyContactPhone?: string;
-		emergencyContactAlternatePhone?: string;
-		emergencyContactEmail?: string;
-		emergencyContactAddress?: string;
-	};
-
-	type EmergencyContact = {
-		name: string;
-		relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other' | 'adviser';
-		phoneNumber: string;
-		alternatePhone?: string;
-		email?: string;
-		address?: string;
+		healthHistory?: string | null;
+		emergencyContacts?: EmergencyContact[];
 	};
 
 	// Props
@@ -64,17 +56,20 @@
 		open = $bindable(false),
 		mode = 'add',
 		student = null,
-		emergencyContact = null
+		emergencyContacts = []
 	}: {
 		open?: boolean;
 		mode?: 'add' | 'edit';
 		student?: Student | null;
-		emergencyContact?: EmergencyContact | null;
+		emergencyContacts?: EmergencyContact[];
 	} = $props();
 
 	// Form state
 	let submitting = $state(false);
 	let errors = $state<Record<string, string[]>>({});
+
+	// Emergency contacts management
+	let emergencyContactsState = $state<EmergencyContact[]>([]);
 
 	// Grade options
 	const gradeOptions = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
@@ -85,6 +80,7 @@
 		{ value: 'guardian', label: 'Guardian' },
 		{ value: 'sibling', label: 'Sibling' },
 		{ value: 'grandparent', label: 'Grandparent' },
+		{ value: 'adviser', label: 'Adviser' },
 		{ value: 'other', label: 'Other' }
 	];
 
@@ -110,13 +106,7 @@
 		address: '',
 		chronicHealthConditions: '',
 		currentMedications: '',
-		healthHistory: '',
-		emergencyContactName: '',
-		emergencyContactRelationship: '',
-		emergencyContactPhone: '',
-		emergencyContactAlternatePhone: '',
-		emergencyContactEmail: '',
-		emergencyContactAddress: ''
+		healthHistory: ''
 	});
 
 	// Calendar state for date of birth
@@ -137,7 +127,7 @@
 	// Initialize form with student data when editing
 	onMount(() => {
 		if (mode === 'edit' && student) {
-			populateFormData(student, emergencyContact);
+			populateFormData(student, emergencyContacts);
 		} else if (mode === 'add') {
 			resetForm();
 		}
@@ -152,7 +142,7 @@
 		}
 	}
 
-	function populateFormData(studentData: Student, contactData: EmergencyContact | null) {
+	function populateFormData(studentData: Student, contactsData: EmergencyContact[]) {
 		formData = {
 			studentId: studentData.studentId,
 			firstName: studentData.firstName,
@@ -170,14 +160,12 @@
 			currentMedications: Array.isArray(studentData.currentMedications)
 				? studentData.currentMedications.join(', ')
 				: '',
-			healthHistory: studentData.healthHistory || '',
-			emergencyContactName: contactData?.name || '',
-			emergencyContactRelationship: contactData?.relationship || '',
-			emergencyContactPhone: contactData?.phoneNumber || '',
-			emergencyContactAlternatePhone: contactData?.alternatePhone || '',
-			emergencyContactEmail: contactData?.email || '',
-			emergencyContactAddress: contactData?.address || ''
+			healthHistory: studentData.healthHistory || ''
 		};
+
+		// Set emergency contacts
+		emergencyContactsState =
+			contactsData && contactsData.length > 0 ? [...contactsData] : [createEmptyContact()];
 
 		// Set date of birth
 		if (studentData.dateOfBirth) {
@@ -210,16 +198,39 @@
 			address: '',
 			chronicHealthConditions: '',
 			currentMedications: '',
-			healthHistory: '',
-			emergencyContactName: '',
-			emergencyContactRelationship: '',
-			emergencyContactPhone: '',
-			emergencyContactAlternatePhone: '',
-			emergencyContactEmail: '',
-			emergencyContactAddress: ''
+			healthHistory: ''
 		};
+		emergencyContactsState = [createEmptyContact()];
 		dateOfBirth = undefined;
 		errors = {};
+	}
+
+	// Helper functions for emergency contacts
+	function createEmptyContact(): EmergencyContact {
+		return {
+			name: '',
+			relationship: 'parent',
+			phoneNumber: '',
+			alternatePhone: '',
+			email: '',
+			address: '',
+			isPrimary: false,
+			priority: 1
+		};
+	}
+
+	function addEmergencyContact() {
+		emergencyContactsState = [...emergencyContactsState, createEmptyContact()];
+	}
+
+	function removeEmergencyContact(index: number) {
+		if (emergencyContactsState.length > 1) {
+			emergencyContactsState = emergencyContactsState.filter((_, i) => i !== index);
+		}
+	}
+
+	function updateEmergencyContact(index: number, field: keyof EmergencyContact, value: any) {
+		emergencyContactsState[index] = { ...emergencyContactsState[index], [field]: value };
 	}
 
 	// Computed values
@@ -249,7 +260,7 @@
 				action={formAction}
 				use:enhance={() => {
 					submitting = true;
-					return async ({ result }) => {
+					return async ({ result, formData }) => {
 						submitting = false;
 
 						if (result.type === 'failure') {
@@ -267,6 +278,42 @@
 				{#if mode === 'edit' && student?.id}
 					<input type="hidden" name="id" value={student.id} />
 				{/if}
+
+				<!-- Hidden fields for emergency contacts -->
+				{#each emergencyContactsState as contact, index}
+					<input type="hidden" name="emergencyContacts[{index}][name]" value={contact.name} />
+					<input
+						type="hidden"
+						name="emergencyContacts[{index}][relationship]"
+						value={contact.relationship}
+					/>
+					<input
+						type="hidden"
+						name="emergencyContacts[{index}][phoneNumber]"
+						value={contact.phoneNumber}
+					/>
+					<input
+						type="hidden"
+						name="emergencyContacts[{index}][alternatePhone]"
+						value={contact.alternatePhone || ''}
+					/>
+					<input
+						type="hidden"
+						name="emergencyContacts[{index}][email]"
+						value={contact.email || ''}
+					/>
+					<input
+						type="hidden"
+						name="emergencyContacts[{index}][address]"
+						value={contact.address || ''}
+					/>
+					<input
+						type="hidden"
+						name="emergencyContacts[{index}][isPrimary]"
+						value={index === 0 ? 'true' : 'false'}
+					/>
+					<input type="hidden" name="emergencyContacts[{index}][priority]" value={index + 1} />
+				{/each}
 
 				<!-- Personal Information Section -->
 				<div class="space-y-4">
@@ -527,116 +574,155 @@
 					</div>
 				</div>
 
-				<!-- Emergency Contact Section -->
+				<!-- Emergency Contacts Section -->
 				<div class="space-y-4">
-					<h3 class="text-lg font-semibold">Emergency Contact</h3>
-
-					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-						<!-- Emergency Contact Name -->
-						<div class="space-y-2">
-							<Label for="emergencyContactName">Contact Name *</Label>
-							<Input
-								id="emergencyContactName"
-								name="emergencyContactName"
-								bind:value={formData.emergencyContactName}
-								placeholder="Enter emergency contact name"
-								class="w-full"
-								required
-							/>
-							{#if errors.emergencyContactName}
-								<p class="text-sm text-destructive">{errors.emergencyContactName[0]}</p>
-							{/if}
-						</div>
-
-						<!-- Emergency Contact Relationship -->
-						<div class="space-y-2">
-							<Label>Relationship *</Label>
-							<Select.Root bind:value={formData.emergencyContactRelationship} type="single">
-								<Select.Trigger class="w-full">
-									{formData.emergencyContactRelationship
-										? toTitleCase(formData.emergencyContactRelationship)
-										: 'Select relationship'}
-								</Select.Trigger>
-								<Select.Content>
-									{#each relationshipOptions as relationship}
-										<Select.Item value={relationship.value}>{relationship.label}</Select.Item>
-									{/each}
-								</Select.Content>
-							</Select.Root>
-							<input
-								type="hidden"
-								name="emergencyContactRelationship"
-								bind:value={formData.emergencyContactRelationship}
-							/>
-							{#if errors.emergencyContactRelationship}
-								<p class="text-sm text-destructive">{errors.emergencyContactRelationship[0]}</p>
-							{/if}
-						</div>
-						<!-- Emergency Contact Phone -->
-						<div class="space-y-2">
-							<Label for="emergencyContactPhone">Phone Number *</Label>
-							<Input
-								id="emergencyContactPhone"
-								name="emergencyContactPhone"
-								type="tel"
-								bind:value={formData.emergencyContactPhone}
-								placeholder="Enter phone number"
-								class="w-full"
-								required
-							/>
-							{#if errors.emergencyContactPhone}
-								<p class="text-sm text-destructive">{errors.emergencyContactPhone[0]}</p>
-							{/if}
-						</div>
-
-						<!-- Emergency Contact Alternate Phone -->
-						<div class="space-y-2">
-							<Label for="emergencyContactAlternatePhone">Alternate Phone</Label>
-							<Input
-								id="emergencyContactAlternatePhone"
-								name="emergencyContactAlternatePhone"
-								type="tel"
-								bind:value={formData.emergencyContactAlternatePhone}
-								placeholder="Enter alternate phone (optional)"
-								class="w-full"
-							/>
-							{#if errors.emergencyContactAlternatePhone}
-								<p class="text-sm text-destructive">{errors.emergencyContactAlternatePhone[0]}</p>
-							{/if}
-						</div>
-
-						<!-- Emergency Contact Email -->
-						<div class="space-y-2 md:col-span-2">
-							<Label for="emergencyContactEmail">Email</Label>
-							<Input
-								id="emergencyContactEmail"
-								name="emergencyContactEmail"
-								type="email"
-								bind:value={formData.emergencyContactEmail}
-								placeholder="Enter email (optional)"
-								class="w-full"
-							/>
-							{#if errors.emergencyContactEmail}
-								<p class="text-sm text-destructive">{errors.emergencyContactEmail[0]}</p>
-							{/if}
-						</div>
+					<div class="flex items-center justify-between">
+						<h3 class="text-lg font-semibold">Emergency Contacts</h3>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onclick={addEmergencyContact}
+							class="h-8"
+						>
+							<Plus class="mr-2 size-4" />
+							Add Contact
+						</Button>
 					</div>
 
-					<!-- Emergency Contact Address -->
-					<div class="space-y-2">
-						<Label for="emergencyContactAddress">Contact Address</Label>
-						<Textarea
-							id="emergencyContactAddress"
-							name="emergencyContactAddress"
-							bind:value={formData.emergencyContactAddress}
-							placeholder="Enter emergency contact address (optional)"
-							class="w-full"
-							rows={2}
-						/>
-						{#if errors.emergencyContactAddress}
-							<p class="text-sm text-destructive">{errors.emergencyContactAddress[0]}</p>
-						{/if}
-					</div>
+					{#each emergencyContactsState as contact, index}
+						<div class="space-y-4 rounded-lg border border-border p-4">
+							<div class="flex items-center justify-between">
+								<h4 class="font-medium">
+									Contact {index + 1}
+									{#if index === 0}
+										<span class="ml-2 text-sm font-normal text-muted-foreground">(Primary)</span>
+									{/if}
+								</h4>
+								{#if emergencyContactsState.length > 1}
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										onclick={() => removeEmergencyContact(index)}
+										class="h-8 w-8 p-0 text-destructive hover:text-destructive"
+									>
+										<Trash2 class="size-4" />
+									</Button>
+								{/if}
+							</div>
+
+							<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+								<!-- Contact Name -->
+								<div class="space-y-2">
+									<Label for="emergencyContactName{index}">Contact Name *</Label>
+									<Input
+										id="emergencyContactName{index}"
+										bind:value={contact.name}
+										placeholder="Enter emergency contact name"
+										class="w-full"
+										required
+									/>
+									{#if errors[`emergencyContacts.${index}.name`]}
+										<p class="text-sm text-destructive">
+											{errors[`emergencyContacts.${index}.name`][0]}
+										</p>
+									{/if}
+								</div>
+
+								<!-- Contact Relationship -->
+								<div class="space-y-2">
+									<Label>Relationship *</Label>
+									<Select.Root bind:value={contact.relationship} type="single">
+										<Select.Trigger class="w-full">
+											{contact.relationship
+												? toTitleCase(contact.relationship)
+												: 'Select relationship'}
+										</Select.Trigger>
+										<Select.Content>
+											{#each relationshipOptions as relationship}
+												<Select.Item value={relationship.value}>{relationship.label}</Select.Item>
+											{/each}
+										</Select.Content>
+									</Select.Root>
+									{#if errors[`emergencyContacts.${index}.relationship`]}
+										<p class="text-sm text-destructive">
+											{errors[`emergencyContacts.${index}.relationship`][0]}
+										</p>
+									{/if}
+								</div>
+
+								<!-- Contact Phone -->
+								<div class="space-y-2">
+									<Label for="emergencyContactPhone{index}">Phone Number *</Label>
+									<Input
+										id="emergencyContactPhone{index}"
+										type="tel"
+										bind:value={contact.phoneNumber}
+										placeholder="Enter phone number"
+										class="w-full"
+										required
+									/>
+									{#if errors[`emergencyContacts.${index}.phoneNumber`]}
+										<p class="text-sm text-destructive">
+											{errors[`emergencyContacts.${index}.phoneNumber`][0]}
+										</p>
+									{/if}
+								</div>
+
+								<!-- Contact Alternate Phone -->
+								<div class="space-y-2">
+									<Label for="emergencyContactAlternatePhone{index}">Alternate Phone</Label>
+									<Input
+										id="emergencyContactAlternatePhone{index}"
+										type="tel"
+										bind:value={contact.alternatePhone}
+										placeholder="Enter alternate phone (optional)"
+										class="w-full"
+									/>
+									{#if errors[`emergencyContacts.${index}.alternatePhone`]}
+										<p class="text-sm text-destructive">
+											{errors[`emergencyContacts.${index}.alternatePhone`][0]}
+										</p>
+									{/if}
+								</div>
+
+								<!-- Contact Email -->
+								<div class="space-y-2 md:col-span-2">
+									<Label for="emergencyContactEmail{index}">Email</Label>
+									<Input
+										id="emergencyContactEmail{index}"
+										type="email"
+										bind:value={contact.email}
+										placeholder="Enter email (optional)"
+										class="w-full"
+									/>
+									{#if errors[`emergencyContacts.${index}.email`]}
+										<p class="text-sm text-destructive">
+											{errors[`emergencyContacts.${index}.email`][0]}
+										</p>
+									{/if}
+								</div>
+							</div>
+
+							<!-- Contact Address -->
+							<div class="space-y-2">
+								<Label for="emergencyContactAddress{index}">Contact Address</Label>
+								<Textarea
+									id="emergencyContactAddress{index}"
+									bind:value={contact.address}
+									placeholder="Enter emergency contact address (optional)"
+									class="w-full"
+									rows={2}
+								/>
+								{#if errors[`emergencyContacts.${index}.address`]}
+									<p class="text-sm text-destructive">
+										{errors[`emergencyContacts.${index}.address`][0]}
+									</p>
+								{/if}
+							</div>
+						</div>
+					{/each}
 				</div>
 
 				<Dialog.Footer class="border-t pt-4">

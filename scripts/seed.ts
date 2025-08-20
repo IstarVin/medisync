@@ -288,6 +288,16 @@ async function main() {
 	await db.insert(emergencyContacts).values(emergencyContactsData);
 
 	// 4. Sample clinic visits for some students
+	const today = new Date();
+	const yesterday = new Date(today);
+	yesterday.setDate(today.getDate() - 1);
+	const lastWeek = new Date(today);
+	lastWeek.setDate(today.getDate() - 7);
+	const twoHoursAgo = new Date(today);
+	twoHoursAgo.setHours(today.getHours() - 2);
+	const oneHourAgo = new Date(today);
+	oneHourAgo.setHours(today.getHours() - 1);
+
 	const clinicVisitsData = [
 		{
 			studentId: sampleStudents[2].id, // Noah with Asthma
@@ -295,6 +305,8 @@ async function main() {
 			visitType: 'emergency' as const,
 			status: 'completed' as const,
 			severity: 'high' as const,
+			checkInTime: twoHoursAgo,
+			checkOutTime: oneHourAgo,
 			chiefComplaint: 'Difficulty breathing during PE class',
 			symptoms: 'Wheezing, shortness of breath, chest tightness',
 			vitalSigns: { temperature: 37.2, pulse: 115, respiratoryRate: 28 },
@@ -312,6 +324,8 @@ async function main() {
 			visitType: 'medication' as const,
 			status: 'completed' as const,
 			severity: 'medium' as const,
+			checkInTime: yesterday,
+			checkOutTime: yesterday,
 			chiefComplaint: 'Blood sugar check and insulin administration',
 			symptoms: 'Feeling dizzy, low energy',
 			vitalSigns: { temperature: 36.8, pulse: 82, bloodSugar: 65 },
@@ -322,6 +336,119 @@ async function main() {
 			followUpRequired: false,
 			isEmergency: false,
 			parentNotified: true
+		},
+		{
+			studentId: sampleStudents[0].id, // Ethan Carter
+			attendedById: doctor.id,
+			visitType: 'injury' as const,
+			status: 'active' as const,
+			severity: 'low' as const,
+			checkInTime: new Date(),
+			chiefComplaint: 'Scraped knee from playground fall',
+			symptoms: 'Minor abrasion on right knee, slight bleeding',
+			vitalSigns: { temperature: 36.5, pulse: 88 },
+			diagnosis: 'Minor abrasion',
+			treatment: 'Cleaned wound, applied bandage',
+			medicationGiven: 'Antiseptic solution',
+			instructions: 'Keep wound clean and dry',
+			followUpRequired: false,
+			isEmergency: false,
+			parentNotified: false
+		},
+		{
+			studentId: sampleStudents[1].id, // Olivia Bennett
+			attendedById: nurse.id,
+			visitType: 'illness' as const,
+			status: 'completed' as const,
+			severity: 'low' as const,
+			checkInTime: lastWeek,
+			checkOutTime: lastWeek,
+			chiefComplaint: 'Headache and mild fever',
+			symptoms: 'Headache, low-grade fever, fatigue',
+			vitalSigns: { temperature: 37.8, pulse: 92 },
+			diagnosis: 'Viral infection',
+			treatment: 'Rest, hydration, acetaminophen',
+			medicationGiven: 'Acetaminophen 500mg',
+			instructions: 'Rest at home, return if symptoms worsen',
+			followUpRequired: false,
+			isEmergency: false,
+			parentNotified: true
+		},
+		{
+			studentId: sampleStudents[4].id, // Liam Foster
+			attendedById: nurse.id,
+			visitType: 'checkup' as const,
+			status: 'completed' as const,
+			severity: 'low' as const,
+			checkInTime: lastWeek,
+			checkOutTime: lastWeek,
+			chiefComplaint: 'Routine health screening',
+			symptoms: 'None',
+			vitalSigns: { temperature: 36.7, pulse: 75, heightCm: 165, weightKg: 58 },
+			diagnosis: 'Healthy',
+			treatment: 'None required',
+			medicationGiven: 'None',
+			instructions: 'Continue healthy lifestyle',
+			followUpRequired: false,
+			isEmergency: false,
+			parentNotified: false
+		},
+		{
+			studentId: sampleStudents[6].id, // Jackson Hayes
+			attendedById: doctor.id,
+			visitType: 'emergency' as const,
+			status: 'completed' as const,
+			severity: 'critical' as const,
+			checkInTime: lastWeek,
+			checkOutTime: lastWeek,
+			chiefComplaint: 'Seizure in classroom',
+			symptoms: 'Generalized tonic-clonic seizure, confusion post-ictal',
+			vitalSigns: { temperature: 37.0, pulse: 110, respiratoryRate: 22 },
+			diagnosis: 'Epileptic seizure',
+			treatment: 'Positioning, monitoring, medication adjustment',
+			medicationGiven: 'Emergency seizure medication',
+			instructions: 'Follow up with neurologist, medication review',
+			followUpRequired: true,
+			isEmergency: true,
+			parentNotified: true
+		},
+		{
+			studentId: sampleStudents[5].id, // Ava Mitchell
+			attendedById: nurse.id,
+			visitType: 'other' as const,
+			status: 'completed' as const,
+			severity: 'low' as const,
+			checkInTime: yesterday,
+			checkOutTime: yesterday,
+			chiefComplaint: 'Stomach ache after lunch',
+			symptoms: 'Mild abdominal pain, nausea',
+			vitalSigns: { temperature: 36.9, pulse: 85 },
+			diagnosis: 'Mild gastric upset',
+			treatment: 'Rest, light diet',
+			medicationGiven: 'Antacid',
+			instructions: 'Avoid dairy products today',
+			followUpRequired: false,
+			isEmergency: false,
+			parentNotified: false
+		},
+		{
+			studentId: sampleStudents[8].id, // Lucas Harper
+			attendedById: nurse.id,
+			visitType: 'mental_health' as const,
+			status: 'completed' as const,
+			severity: 'medium' as const,
+			checkInTime: lastWeek,
+			checkOutTime: lastWeek,
+			chiefComplaint: 'Anxiety about upcoming exams',
+			symptoms: 'Nervousness, difficulty concentrating, mild tremor',
+			vitalSigns: { temperature: 36.6, pulse: 95 },
+			diagnosis: 'Exam anxiety',
+			treatment: 'Counseling, relaxation techniques',
+			medicationGiven: 'None',
+			instructions: 'Practice stress management, follow up with counselor',
+			followUpRequired: true,
+			isEmergency: false,
+			parentNotified: false
 		}
 	];
 

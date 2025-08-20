@@ -1,4 +1,3 @@
-import { addStudentSchema } from '$lib/schemas/student.js';
 import { db } from '$lib/server/db/index.js';
 import { emergencyContacts, students } from '$lib/server/db/schema.js';
 import { fail } from '@sveltejs/kit';
@@ -7,37 +6,15 @@ import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
 	try {
-		// Fetch all students with their emergency contacts for client-side filtering and pagination
-		const allStudents = await db
-			.select({
-				id: students.id,
-				studentId: students.studentId,
-				firstName: students.firstName,
-				lastName: students.lastName,
-				middleName: students.middleName,
-				email: students.email,
-				dateOfBirth: students.dateOfBirth,
-				gender: students.gender,
-				grade: students.grade,
-				section: students.section,
-				address: students.address,
-				chronicHealthConditions: students.chronicHealthConditions,
-				currentMedications: students.currentMedications,
-				healthHistory: students.healthHistory,
-				enrollmentDate: students.enrollmentDate,
-				isActive: students.isActive,
-				// Emergency contact info (primary contact only)
-				emergencyContactId: emergencyContacts.id,
-				emergencyContactName: emergencyContacts.name,
-				emergencyContactRelationship: emergencyContacts.relationship,
-				emergencyContactPhone: emergencyContacts.phoneNumber,
-				emergencyContactAlternatePhone: emergencyContacts.alternatePhone,
-				emergencyContactEmail: emergencyContacts.email,
-				emergencyContactAddress: emergencyContacts.address
-			})
-			.from(students)
-			.leftJoin(emergencyContacts, eq(emergencyContacts.studentId, students.id))
-			.orderBy(asc(students.lastName), asc(students.firstName));
+		// Fetch all students with their emergency contacts using the relation query
+		const allStudents = await db.query.students.findMany({
+			with: {
+				emergencyContacts: {
+					orderBy: [asc(emergencyContacts.priority), asc(emergencyContacts.createdAt)]
+				}
+			},
+			orderBy: [asc(students.lastName), asc(students.firstName)]
+		});
 
 		// Calculate statistics
 		const stats = {
@@ -95,7 +72,7 @@ export const actions: Actions = {
 		try {
 			const formData = await request.formData();
 
-			// Convert FormData to object
+			// Extract student data
 			const studentData = {
 				studentId: formData.get('studentId') as string,
 				firstName: formData.get('firstName') as string,
@@ -109,81 +86,122 @@ export const actions: Actions = {
 				address: formData.get('address') as string | null,
 				chronicHealthConditions: formData.get('chronicHealthConditions') as string | null,
 				currentMedications: formData.get('currentMedications') as string | null,
-				healthHistory: formData.get('healthHistory') as string | null,
-				emergencyContactName: formData.get('emergencyContactName') as string,
-				emergencyContactRelationship: formData.get('emergencyContactRelationship') as
-					| 'parent'
-					| 'guardian'
-					| 'sibling'
-					| 'grandparent'
-					| 'other'
-					| 'adviser',
-				emergencyContactPhone: formData.get('emergencyContactPhone') as string,
-				emergencyContactAlternatePhone: formData.get('emergencyContactAlternatePhone') as
-					| string
-					| null,
-				emergencyContactEmail: formData.get('emergencyContactEmail') as string | null,
-				emergencyContactAddress: formData.get('emergencyContactAddress') as string | null
+				healthHistory: formData.get('healthHistory') as string | null
 			};
 
-			// Validate the form data (server-side validation)
-			const validationResult = addStudentSchema.safeParse(studentData);
+			// Extract emergency contacts data
+			const emergencyContactsData: {
+				name: string;
+				relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other' | 'adviser';
+				phoneNumber: string;
+				alternatePhone: string | null;
+				email: string | null;
+				address: string | null;
+				isPrimary: boolean;
+				priority: number;
+			}[] = [];
+			let contactIndex = 0;
+			while (formData.get(`emergencyContacts[${contactIndex}][name]`)) {
+				emergencyContactsData.push({
+					name: formData.get(`emergencyContacts[${contactIndex}][name]`) as string,
+					relationship: formData.get(`emergencyContacts[${contactIndex}][relationship]`) as
+						| 'parent'
+						| 'guardian'
+						| 'sibling'
+						| 'grandparent'
+						| 'other'
+						| 'adviser',
+					phoneNumber: formData.get(`emergencyContacts[${contactIndex}][phoneNumber]`) as string,
+					alternatePhone: formData.get(`emergencyContacts[${contactIndex}][alternatePhone]`) as
+						| string
+						| null,
+					email: formData.get(`emergencyContacts[${contactIndex}][email]`) as string | null,
+					address: formData.get(`emergencyContacts[${contactIndex}][address]`) as string | null,
+					isPrimary: formData.get(`emergencyContacts[${contactIndex}][isPrimary]`) === 'true',
+					priority:
+						parseInt(formData.get(`emergencyContacts[${contactIndex}][priority]`) as string) ||
+						contactIndex + 1
+				});
+				contactIndex++;
+			}
 
-			if (!validationResult.success) {
+			// Validate the form data (basic validation)
+			if (
+				!studentData.studentId ||
+				!studentData.firstName ||
+				!studentData.lastName ||
+				!studentData.dateOfBirth ||
+				!studentData.gender ||
+				!studentData.grade
+			) {
 				return fail(400, {
-					errors: validationResult.error.flatten().fieldErrors,
-					data: studentData
+					error: 'Required fields are missing'
 				});
 			}
 
-			const validData = validationResult.data;
+			if (emergencyContactsData.length === 0) {
+				return fail(400, {
+					error: 'At least one emergency contact is required'
+				});
+			}
 
-			// Start a transaction to insert student and emergency contact
+			// Validate each emergency contact
+			for (const contact of emergencyContactsData) {
+				if (!contact.name || !contact.relationship || !contact.phoneNumber) {
+					return fail(400, {
+						error: 'Emergency contact name, relationship, and phone number are required'
+					});
+				}
+			}
+
+			// Start a transaction to insert student and emergency contacts
 			const result = await db.transaction(async (tx) => {
 				// Insert student
 				const [newStudent] = await tx
 					.insert(students)
 					.values({
-						studentId: validData.studentId,
-						firstName: validData.firstName,
-						lastName: validData.lastName,
-						middleName: validData.middleName || null,
-						email: validData.email || null,
-						dateOfBirth: new Date(validData.dateOfBirth),
-						gender: validData.gender,
-						grade: validData.grade,
-						section: validData.section || null,
-						address: validData.address || null,
-						chronicHealthConditions: validData.chronicHealthConditions
-							? validData.chronicHealthConditions
+						studentId: studentData.studentId,
+						firstName: studentData.firstName,
+						lastName: studentData.lastName,
+						middleName: studentData.middleName || null,
+						email: studentData.email || null,
+						dateOfBirth: new Date(studentData.dateOfBirth),
+						gender: studentData.gender,
+						grade: studentData.grade,
+						section: studentData.section || null,
+						address: studentData.address || null,
+						chronicHealthConditions: studentData.chronicHealthConditions
+							? studentData.chronicHealthConditions
 									.split(',')
 									.map((s) => s.trim())
 									.filter(Boolean)
 							: [],
-						currentMedications: validData.currentMedications
-							? validData.currentMedications
+						currentMedications: studentData.currentMedications
+							? studentData.currentMedications
 									.split(',')
 									.map((s) => s.trim())
 									.filter(Boolean)
 							: [],
-						healthHistory: validData.healthHistory || null,
+						healthHistory: studentData.healthHistory || null,
 						enrollmentDate: new Date(),
 						isActive: true
 					})
 					.returning();
 
-				// Insert emergency contact
-				await tx.insert(emergencyContacts).values({
-					studentId: newStudent.id,
-					name: validData.emergencyContactName,
-					relationship: validData.emergencyContactRelationship,
-					phoneNumber: validData.emergencyContactPhone,
-					alternatePhone: validData.emergencyContactAlternatePhone || null,
-					email: validData.emergencyContactEmail || null,
-					address: validData.emergencyContactAddress || null,
-					isPrimary: true,
-					priority: 1
-				});
+				// Insert emergency contacts
+				for (const contact of emergencyContactsData) {
+					await tx.insert(emergencyContacts).values({
+						studentId: newStudent.id,
+						name: contact.name,
+						relationship: contact.relationship,
+						phoneNumber: contact.phoneNumber,
+						alternatePhone: contact.alternatePhone || null,
+						email: contact.email || null,
+						address: contact.address || null,
+						isPrimary: contact.isPrimary,
+						priority: contact.priority
+					});
+				}
 
 				return newStudent;
 			});
@@ -212,9 +230,8 @@ export const actions: Actions = {
 				});
 			}
 
-			// Convert FormData to object
+			// Extract student data
 			const studentData = {
-				studentId: formData.get('studentId') as string,
 				firstName: formData.get('firstName') as string,
 				lastName: formData.get('lastName') as string,
 				middleName: formData.get('middleName') as string | null,
@@ -226,63 +243,101 @@ export const actions: Actions = {
 				address: formData.get('address') as string | null,
 				chronicHealthConditions: formData.get('chronicHealthConditions') as string | null,
 				currentMedications: formData.get('currentMedications') as string | null,
-				healthHistory: formData.get('healthHistory') as string | null,
-				emergencyContactName: formData.get('emergencyContactName') as string,
-				emergencyContactRelationship: formData.get('emergencyContactRelationship') as
-					| 'parent'
-					| 'guardian'
-					| 'sibling'
-					| 'grandparent'
-					| 'other'
-					| 'adviser',
-				emergencyContactPhone: formData.get('emergencyContactPhone') as string,
-				emergencyContactAlternatePhone: formData.get('emergencyContactAlternatePhone') as
-					| string
-					| null,
-				emergencyContactEmail: formData.get('emergencyContactEmail') as string | null,
-				emergencyContactAddress: formData.get('emergencyContactAddress') as string | null
+				healthHistory: formData.get('healthHistory') as string | null
 			};
 
-			// Validate the form data (server-side validation)
-			const validationResult = addStudentSchema.safeParse(studentData);
+			// Extract emergency contacts data
+			const emergencyContactsData: {
+				name: string;
+				relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other' | 'adviser';
+				phoneNumber: string;
+				alternatePhone: string | null;
+				email: string | null;
+				address: string | null;
+				isPrimary: boolean;
+				priority: number;
+			}[] = [];
+			let contactIndex = 0;
+			while (formData.get(`emergencyContacts[${contactIndex}][name]`)) {
+				emergencyContactsData.push({
+					name: formData.get(`emergencyContacts[${contactIndex}][name]`) as string,
+					relationship: formData.get(`emergencyContacts[${contactIndex}][relationship]`) as
+						| 'parent'
+						| 'guardian'
+						| 'sibling'
+						| 'grandparent'
+						| 'other'
+						| 'adviser',
+					phoneNumber: formData.get(`emergencyContacts[${contactIndex}][phoneNumber]`) as string,
+					alternatePhone: formData.get(`emergencyContacts[${contactIndex}][alternatePhone]`) as
+						| string
+						| null,
+					email: formData.get(`emergencyContacts[${contactIndex}][email]`) as string | null,
+					address: formData.get(`emergencyContacts[${contactIndex}][address]`) as string | null,
+					isPrimary: formData.get(`emergencyContacts[${contactIndex}][isPrimary]`) === 'true',
+					priority:
+						parseInt(formData.get(`emergencyContacts[${contactIndex}][priority]`) as string) ||
+						contactIndex + 1
+				});
+				contactIndex++;
+			}
 
-			if (!validationResult.success) {
+			// Basic validation
+			if (
+				!studentData.firstName ||
+				!studentData.lastName ||
+				!studentData.dateOfBirth ||
+				!studentData.gender ||
+				!studentData.grade
+			) {
 				return fail(400, {
-					errors: validationResult.error.flatten().fieldErrors,
-					data: studentData
+					error: 'Required fields are missing'
 				});
 			}
 
-			const validData = validationResult.data;
+			if (emergencyContactsData.length === 0) {
+				return fail(400, {
+					error: 'At least one emergency contact is required'
+				});
+			}
 
-			// Start a transaction to update student and emergency contact
+			// Validate each emergency contact
+			for (const contact of emergencyContactsData) {
+				if (!contact.name || !contact.relationship || !contact.phoneNumber) {
+					return fail(400, {
+						error: 'Emergency contact name, relationship, and phone number are required'
+					});
+				}
+			}
+
+			// Start a transaction to update student and emergency contacts
 			const result = await db.transaction(async (tx) => {
 				// Update student
 				const [updatedStudent] = await tx
 					.update(students)
 					.set({
-						firstName: validData.firstName,
-						lastName: validData.lastName,
-						middleName: validData.middleName || null,
-						email: validData.email || null,
-						dateOfBirth: new Date(validData.dateOfBirth),
-						gender: validData.gender,
-						grade: validData.grade,
-						section: validData.section || null,
-						address: validData.address || null,
-						chronicHealthConditions: validData.chronicHealthConditions
-							? validData.chronicHealthConditions
+						firstName: studentData.firstName,
+						lastName: studentData.lastName,
+						middleName: studentData.middleName || null,
+						email: studentData.email || null,
+						dateOfBirth: new Date(studentData.dateOfBirth),
+						gender: studentData.gender,
+						grade: studentData.grade,
+						section: studentData.section || null,
+						address: studentData.address || null,
+						chronicHealthConditions: studentData.chronicHealthConditions
+							? studentData.chronicHealthConditions
 									.split(',')
 									.map((s) => s.trim())
 									.filter(Boolean)
 							: [],
-						currentMedications: validData.currentMedications
-							? validData.currentMedications
+						currentMedications: studentData.currentMedications
+							? studentData.currentMedications
 									.split(',')
 									.map((s) => s.trim())
 									.filter(Boolean)
 							: [],
-						healthHistory: validData.healthHistory || null,
+						healthHistory: studentData.healthHistory || null,
 						updatedAt: new Date()
 					})
 					.where(eq(students.id, studentId))
@@ -292,19 +347,23 @@ export const actions: Actions = {
 					throw new Error('Student not found');
 				}
 
-				// Update emergency contact (find primary contact and update)
-				await tx
-					.update(emergencyContacts)
-					.set({
-						name: validData.emergencyContactName,
-						relationship: validData.emergencyContactRelationship,
-						phoneNumber: validData.emergencyContactPhone,
-						alternatePhone: validData.emergencyContactAlternatePhone || null,
-						email: validData.emergencyContactEmail || null,
-						address: validData.emergencyContactAddress || null,
-						updatedAt: new Date()
-					})
-					.where(eq(emergencyContacts.studentId, studentId));
+				// Delete existing emergency contacts
+				await tx.delete(emergencyContacts).where(eq(emergencyContacts.studentId, studentId));
+
+				// Insert new emergency contacts
+				for (const contact of emergencyContactsData) {
+					await tx.insert(emergencyContacts).values({
+						studentId: studentId,
+						name: contact.name,
+						relationship: contact.relationship,
+						phoneNumber: contact.phoneNumber,
+						alternatePhone: contact.alternatePhone || null,
+						email: contact.email || null,
+						address: contact.address || null,
+						isPrimary: contact.isPrimary,
+						priority: contact.priority
+					});
+				}
 
 				return updatedStudent;
 			});
