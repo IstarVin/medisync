@@ -1,5 +1,5 @@
 <script lang="ts">
-	import AddStudentModal from '$lib/components/add-student-modal.svelte';
+	import StudentFormModal from '$lib/components/student-form-modal.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -35,9 +35,44 @@
 		status: StudentStatus | '';
 	};
 
+	type Student = {
+		id: string;
+		studentId: string;
+		firstName: string;
+		lastName: string;
+		middleName?: string;
+		email?: string;
+		dateOfBirth: Date | string;
+		gender: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+		grade: string;
+		section?: string;
+		address?: string;
+		chronicHealthConditions: string[];
+		currentMedications: string[];
+		healthHistory?: string;
+		emergencyContactName?: string;
+		emergencyContactRelationship?: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other';
+		emergencyContactPhone?: string;
+		emergencyContactAlternatePhone?: string;
+		emergencyContactEmail?: string;
+		emergencyContactAddress?: string;
+	};
+
+	type EmergencyContact = {
+		name: string;
+		relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other';
+		phoneNumber: string;
+		alternatePhone?: string;
+		email?: string;
+		address?: string;
+	};
+
 	// Client-side reactive state using Svelte 5 runes
 	let searchQuery = $state('');
-	let addStudentModalOpen = $state(false);
+	let studentFormModalOpen = $state(false);
+	let modalMode = $state<'add' | 'edit'>('add');
+	let selectedStudent = $state<Student | null>(null);
+	let selectedEmergencyContact = $state<EmergencyContact | null>(null);
 	let filters = $state<FilterOptions>({
 		grade: '',
 		medicalCondition: '',
@@ -204,7 +239,10 @@
 	}
 
 	function handleAddStudent() {
-		addStudentModalOpen = true;
+		modalMode = 'add';
+		selectedStudent = null;
+		selectedEmergencyContact = null;
+		studentFormModalOpen = true;
 	}
 
 	function handleViewStudent(studentId: string) {
@@ -213,8 +251,44 @@
 	}
 
 	function handleEditStudent(studentId: string) {
-		// In real app, this would open edit modal or navigate to edit page
-		console.log('Edit student:', studentId);
+		const student = allStudents.find((s) => s.id === studentId);
+		if (student) {
+			modalMode = 'edit';
+
+			// Map the student data to the expected format
+			selectedStudent = {
+				id: student.id,
+				studentId: student.studentId,
+				firstName: student.firstName,
+				lastName: student.lastName,
+				middleName: student.middleName || undefined,
+				email: student.email || undefined,
+				dateOfBirth: student.dateOfBirth,
+				gender: student.gender,
+				grade: student.grade,
+				section: student.section || undefined,
+				address: student.address || undefined,
+				chronicHealthConditions: student.chronicHealthConditions,
+				currentMedications: student.currentMedications,
+				healthHistory: student.healthHistory || undefined
+			};
+
+			// Map the emergency contact data
+			if (student.emergencyContactName) {
+				selectedEmergencyContact = {
+					name: student.emergencyContactName,
+					relationship: student.emergencyContactRelationship!,
+					phoneNumber: student.emergencyContactPhone!,
+					alternatePhone: student.emergencyContactAlternatePhone || undefined,
+					email: student.emergencyContactEmail || undefined,
+					address: student.emergencyContactAddress || undefined
+				};
+			} else {
+				selectedEmergencyContact = null;
+			}
+
+			studentFormModalOpen = true;
+		}
 	}
 
 	// Pagination handlers
@@ -585,5 +659,12 @@
 	</div>
 </main>
 
-<!-- Add Student Modal -->
-<AddStudentModal bind:open={addStudentModalOpen} />
+<!-- Student Form Modal -->
+{#if studentFormModalOpen}
+	<StudentFormModal
+		bind:open={studentFormModalOpen}
+		mode={modalMode}
+		student={selectedStudent}
+		emergencyContact={selectedEmergencyContact}
+	/>
+{/if}

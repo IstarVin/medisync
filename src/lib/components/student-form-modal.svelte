@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { invalidate } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Calendar } from '$lib/components/ui/calendar/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
@@ -10,14 +10,60 @@
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
 	import { cn, toTitleCase } from '$lib/utils.js';
-	import { DateFormatter, getLocalTimeZone, today, type DateValue } from '@internationalized/date';
+	import {
+		CalendarDate,
+		DateFormatter,
+		getLocalTimeZone,
+		today,
+		type DateValue
+	} from '@internationalized/date';
 	import { CalendarIcon, Loader2 } from '@lucide/svelte';
+	import { onMount } from 'svelte';
+
+	// Types
+	type Student = {
+		id?: string;
+		studentId: string;
+		firstName: string;
+		lastName: string;
+		middleName?: string;
+		email?: string;
+		dateOfBirth: Date | string;
+		gender: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+		grade: string;
+		section?: string;
+		address?: string;
+		chronicHealthConditions: string[];
+		currentMedications: string[];
+		healthHistory?: string;
+		emergencyContactName?: string;
+		emergencyContactRelationship?: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other';
+		emergencyContactPhone?: string;
+		emergencyContactAlternatePhone?: string;
+		emergencyContactEmail?: string;
+		emergencyContactAddress?: string;
+	};
+
+	type EmergencyContact = {
+		name: string;
+		relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other';
+		phoneNumber: string;
+		alternatePhone?: string;
+		email?: string;
+		address?: string;
+	};
 
 	// Props
 	let {
-		open = $bindable(false)
+		open = $bindable(false),
+		mode = 'add',
+		student = null,
+		emergencyContact = null
 	}: {
 		open?: boolean;
+		mode?: 'add' | 'edit';
+		student?: Student | null;
+		emergencyContact?: EmergencyContact | null;
 	} = $props();
 
 	// Form state
@@ -82,12 +128,65 @@
 		}
 	});
 
+	// Initialize form with student data when editing
+	onMount(() => {
+		if (mode === 'edit' && student) {
+			populateFormData(student, emergencyContact);
+		} else if (mode === 'add') {
+			resetForm();
+		}
+	});
+
 	// Close dialog when clicking outside or escape
 	function handleOpenChange(isOpen: boolean) {
 		open = isOpen;
 		if (!isOpen) {
 			// Reset form when dialog closes
 			resetForm();
+		}
+	}
+
+	function populateFormData(studentData: Student, contactData: EmergencyContact | null) {
+		formData = {
+			studentId: studentData.studentId,
+			firstName: studentData.firstName,
+			lastName: studentData.lastName,
+			middleName: studentData.middleName || '',
+			email: studentData.email || '',
+			dateOfBirth: '',
+			gender: studentData.gender,
+			grade: studentData.grade,
+			section: studentData.section || '',
+			address: studentData.address || '',
+			chronicHealthConditions: Array.isArray(studentData.chronicHealthConditions)
+				? studentData.chronicHealthConditions.join(', ')
+				: '',
+			currentMedications: Array.isArray(studentData.currentMedications)
+				? studentData.currentMedications.join(', ')
+				: '',
+			healthHistory: studentData.healthHistory || '',
+			emergencyContactName: contactData?.name || '',
+			emergencyContactRelationship: contactData?.relationship || '',
+			emergencyContactPhone: contactData?.phoneNumber || '',
+			emergencyContactAlternatePhone: contactData?.alternatePhone || '',
+			emergencyContactEmail: contactData?.email || '',
+			emergencyContactAddress: contactData?.address || ''
+		};
+
+		// Set date of birth
+		if (studentData.dateOfBirth) {
+			const dob = new Date(studentData.dateOfBirth);
+			const year = dob.getFullYear();
+			const month = dob.getMonth() + 1;
+			const day = dob.getDate();
+
+			// Create proper DateValue using CalendarDate
+			try {
+				dateOfBirth = new CalendarDate(year, month, day);
+				formData.dateOfBirth = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+			} catch (error) {
+				console.error('Error setting date of birth:', error);
+			}
 		}
 	}
 
@@ -116,21 +215,32 @@
 		dateOfBirth = undefined;
 		errors = {};
 	}
+
+	// Computed values
+	const dialogTitle = $derived(mode === 'edit' ? 'Edit Student' : 'Add New Student');
+	const dialogDescription = $derived(
+		mode === 'edit'
+			? "Update the student's information and emergency contact details."
+			: "Enter the student's information and emergency contact details."
+	);
+	const submitButtonText = $derived(mode === 'edit' ? 'Update Student' : 'Add Student');
+	const submittingText = $derived(mode === 'edit' ? 'Updating...' : 'Adding...');
+	const formAction = $derived(mode === 'edit' ? '?/updateStudent' : '?/addStudent');
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
 	<Dialog.Content class="flex max-h-[90vh] flex-col overflow-hidden" style="max-width: 768px;">
 		<Dialog.Header>
-			<Dialog.Title>Add New Student</Dialog.Title>
+			<Dialog.Title>{dialogTitle}</Dialog.Title>
 			<Dialog.Description>
-				Enter the student's information and emergency contact details.
+				{dialogDescription}
 			</Dialog.Description>
 		</Dialog.Header>
 
 		<div class="flex-1 overflow-y-auto pr-2">
 			<form
 				method="POST"
-				action="?/addStudent"
+				action={formAction}
 				use:enhance={() => {
 					submitting = true;
 					return async ({ result }) => {
@@ -139,7 +249,7 @@
 						if (result.type === 'failure') {
 							errors = (result.data?.errors as any) || {};
 						} else if (result.type === 'success') {
-							await invalidate('app:students');
+							await invalidateAll();
 							open = false;
 							// Optionally show success message
 						}
@@ -147,6 +257,11 @@
 				}}
 				class="w-full space-y-6"
 			>
+				<!-- Hidden field for student ID when editing -->
+				{#if mode === 'edit' && student?.id}
+					<input type="hidden" name="id" value={student.id} />
+				{/if}
+
 				<!-- Personal Information Section -->
 				<div class="space-y-4">
 					<h3 class="text-lg font-semibold">Personal Information</h3>
@@ -162,6 +277,7 @@
 								placeholder="Enter student ID"
 								class="w-full"
 								required
+								readonly={mode === 'edit'}
 							/>
 							{#if errors.studentId}
 								<p class="text-sm text-destructive">{errors.studentId[0]}</p>
@@ -357,7 +473,8 @@
 							rows={2}
 						/>
 						<p class="text-sm text-muted-foreground">
-							List any ongoing medical conditions, allergies, or health concerns.
+							List any ongoing medical conditions, allergies, or health concerns. Separate multiple
+							conditions with commas.
 						</p>
 						{#if errors.chronicHealthConditions}
 							<p class="text-sm text-destructive">{errors.chronicHealthConditions[0]}</p>
@@ -376,7 +493,8 @@
 							rows={2}
 						/>
 						<p class="text-sm text-muted-foreground">
-							Include medication names, dosages, and frequency.
+							Include medication names, dosages, and frequency. Separate multiple medications with
+							commas.
 						</p>
 						{#if errors.currentMedications}
 							<p class="text-sm text-destructive">{errors.currentMedications[0]}</p>
@@ -527,9 +645,9 @@
 					<Button type="submit" disabled={submitting} class="min-w-[100px]">
 						{#if submitting}
 							<Loader2 class="mr-2 size-4 animate-spin" />
-							Adding...
+							{submittingText}
 						{:else}
-							Add Student
+							{submitButtonText}
 						{/if}
 					</Button>
 				</Dialog.Footer>
