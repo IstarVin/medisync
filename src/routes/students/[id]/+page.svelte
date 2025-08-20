@@ -11,7 +11,6 @@
 	import {
 		ArrowLeft,
 		Clock,
-		Edit,
 		GraduationCap,
 		Heart,
 		Mail,
@@ -63,12 +62,6 @@
 	// Actions
 	function handleBack() {
 		history.back();
-	}
-
-	function handleEdit() {
-		// Navigate to edit mode - this would typically open the same form modal
-		// For now, go back to students list where edit functionality exists
-		goto('/students');
 	}
 
 	function handleNewVisit() {
@@ -124,10 +117,10 @@
 			</div>
 
 			<div class="flex gap-2">
-				<Button variant="outline" onclick={handleEdit}>
+				<!-- <Button variant="outline" onclick={handleEdit}>
 					<Edit class="mr-2 size-4" />
 					Edit Student
-				</Button>
+				</Button> -->
 				<Button onclick={handleNewVisit}>
 					<Plus class="mr-2 size-4" />
 					New Visit

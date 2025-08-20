@@ -144,7 +144,7 @@
 </script>
 
 <Dialog.Root bind:open onOpenChange={handleOpenChange}>
-	<Dialog.Content class="flex max-h-[90vh] max-w-lg flex-col overflow-hidden">
+	<Dialog.Content class="flex max-h-[90vh] max-w-2xl! flex-col overflow-hidden">
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<Stethoscope class="size-5" />
@@ -185,7 +185,7 @@
 			<div class="space-y-2">
 				<Label for="nurseId">Nurse *</Label>
 				<Popover.Root bind:open={nurseComboboxOpen}>
-					<Popover.Trigger bind:ref={nurseTriggerRef} class="w-full">
+					<Popover.Trigger bind:ref={nurseTriggerRef} id="nurseId" class="w-full">
 						{#snippet child({ props })}
 							<Button
 								variant="outline"
@@ -207,6 +207,7 @@
 								<Command.Group>
 									{#each availableNurses as nurse}
 										<Command.Item
+											class="cursor-pointer"
 											value={nurse.id}
 											onSelect={() => {
 												formData.nurseId = nurse.id;
@@ -235,7 +236,7 @@
 				<div class="space-y-2">
 					<Label for="visitType">Visit Type</Label>
 					<Select.Root bind:value={formData.visitType} type="single">
-						<Select.Trigger class="w-full">
+						<Select.Trigger class="w-full" id="visitType">
 							{formData.visitType
 								? (visitTypeOptions.find((opt) => opt.value === formData.visitType)?.label ??
 									'Other')
@@ -255,7 +256,7 @@
 				<div class="space-y-2">
 					<Label for="severity">Severity</Label>
 					<Select.Root bind:value={formData.severity} type="single">
-						<Select.Trigger class="w-full">
+						<Select.Trigger class="w-full" id="severity">
 							{formData.severity
 								? (severityOptions.find((opt) => opt.value === formData.severity)?.label ?? 'Low')
 								: 'Select severity'}
