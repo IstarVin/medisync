@@ -37,7 +37,13 @@
 		currentMedications: string[];
 		healthHistory?: string;
 		emergencyContactName?: string;
-		emergencyContactRelationship?: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other';
+		emergencyContactRelationship?:
+			| 'parent'
+			| 'guardian'
+			| 'sibling'
+			| 'grandparent'
+			| 'other'
+			| 'adviser';
 		emergencyContactPhone?: string;
 		emergencyContactAlternatePhone?: string;
 		emergencyContactEmail?: string;
@@ -46,7 +52,7 @@
 
 	type EmergencyContact = {
 		name: string;
-		relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other';
+		relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other' | 'adviser';
 		phoneNumber: string;
 		alternatePhone?: string;
 		email?: string;

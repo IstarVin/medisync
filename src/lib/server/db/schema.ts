@@ -56,7 +56,8 @@ export const relationshipEnum = pgEnum('relationship', [
 	'guardian',
 	'sibling',
 	'grandparent',
-	'other'
+	'other',
+	'adviser'
 ]);
 export const notificationStatusEnum = pgEnum('notification_status', ['pending', 'sent', 'failed']);
 

@@ -116,7 +116,8 @@ export const actions: Actions = {
 					| 'guardian'
 					| 'sibling'
 					| 'grandparent'
-					| 'other',
+					| 'other'
+					| 'adviser',
 				emergencyContactPhone: formData.get('emergencyContactPhone') as string,
 				emergencyContactAlternatePhone: formData.get('emergencyContactAlternatePhone') as
 					| string
@@ -232,7 +233,8 @@ export const actions: Actions = {
 					| 'guardian'
 					| 'sibling'
 					| 'grandparent'
-					| 'other',
+					| 'other'
+					| 'adviser',
 				emergencyContactPhone: formData.get('emergencyContactPhone') as string,
 				emergencyContactAlternatePhone: formData.get('emergencyContactAlternatePhone') as
 					| string

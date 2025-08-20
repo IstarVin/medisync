@@ -17,7 +17,6 @@
 		Heart,
 		Plus,
 		Search,
-		UserPlus,
 		X
 	} from '@lucide/svelte';
 	import type { PageData } from './$types';
@@ -51,7 +50,13 @@
 		currentMedications: string[];
 		healthHistory?: string;
 		emergencyContactName?: string;
-		emergencyContactRelationship?: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other';
+		emergencyContactRelationship?:
+			| 'parent'
+			| 'guardian'
+			| 'sibling'
+			| 'grandparent'
+			| 'other'
+			| 'adviser';
 		emergencyContactPhone?: string;
 		emergencyContactAlternatePhone?: string;
 		emergencyContactEmail?: string;
@@ -60,7 +65,7 @@
 
 	type EmergencyContact = {
 		name: string;
-		relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other';
+		relationship: 'parent' | 'guardian' | 'sibling' | 'grandparent' | 'other' | 'adviser';
 		phoneNumber: string;
 		alternatePhone?: string;
 		email?: string;
@@ -245,11 +250,6 @@
 		studentFormModalOpen = true;
 	}
 
-	function handleViewStudent(studentId: string) {
-		// In real app, this would navigate to student profile
-		console.log('View student:', studentId);
-	}
-
 	function handleEditStudent(studentId: string) {
 		const student = allStudents.find((s) => s.id === studentId);
 		if (student) {
@@ -334,10 +334,10 @@
 						<Heart class="size-4" />
 						<span>{studentStats.withMedicalConditions} With Medical Conditions</span>
 					</div>
-					<div class="flex items-center gap-1">
+					<!-- <div class="flex items-center gap-1">
 						<UserPlus class="size-4" />
 						<span>{studentStats.recentlyEnrolled} Recently Enrolled</span>
-					</div>
+					</div> -->
 				</div>
 			</div>
 
@@ -575,8 +575,8 @@
 										<Button
 											variant="ghost"
 											size="icon"
-											onclick={() => handleViewStudent(student.id)}
 											class="size-8"
+											href="/students/{student.id}"
 										>
 											<Eye class="size-4" />
 											<span class="sr-only">View student</span>
