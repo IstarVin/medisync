@@ -39,10 +39,22 @@ export const load: PageServerLoad = async () => {
 	const recentVisits = await db
 		.select({
 			id: clinicVisits.id,
-			patientName: sql<string>`${students.firstName} || ' ' || ${students.lastName}`,
-			section: sql<string>`${students.grade} || CASE WHEN ${students.section} IS NOT NULL THEN ' - ' || ${students.section} ELSE '' END`,
-			reasonForVisit: clinicVisits.chiefComplaint,
-			checkInTime: clinicVisits.checkInTime
+			visitNumber: clinicVisits.visitNumber,
+			checkInTime: clinicVisits.checkInTime,
+			checkOutTime: clinicVisits.checkOutTime,
+			visitType: clinicVisits.visitType,
+			status: clinicVisits.status,
+			severity: clinicVisits.severity,
+			chiefComplaint: clinicVisits.chiefComplaint,
+			isEmergency: clinicVisits.isEmergency,
+			student: {
+				id: students.id,
+				studentId: students.studentId,
+				firstName: students.firstName,
+				lastName: students.lastName,
+				grade: students.grade,
+				section: students.section
+			}
 		})
 		.from(clinicVisits)
 		.innerJoin(students, sql`${clinicVisits.studentId} = ${students.id}`)
@@ -50,26 +62,8 @@ export const load: PageServerLoad = async () => {
 		.orderBy(desc(clinicVisits.checkInTime))
 		.limit(10);
 
-	// Format recent visits for the frontend
-	const formattedRecentVisits = recentVisits.map((visit) => ({
-		id: visit.id,
-		patientName: visit.patientName,
-		section: visit.section,
-		reasonForVisit: visit.reasonForVisit,
-		time: visit.checkInTime.toLocaleTimeString('en-US', {
-			hour: 'numeric',
-			minute: '2-digit',
-			hour12: true
-		}),
-		date: visit.checkInTime.toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: '2-digit',
-			day: '2-digit'
-		})
-	}));
-
 	return {
-		recentVisits: formattedRecentVisits,
+		recentVisits,
 		visitsThisDay,
 		visitsThisMonth,
 		totalVisits

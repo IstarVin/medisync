@@ -5,7 +5,7 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
+	import VisitsTable from '$lib/components/visits-table.svelte';
 	import { toTitleCase } from '$lib/utils';
 	import {
 		ArrowLeft,
@@ -48,46 +48,6 @@
 			month: 'long',
 			day: 'numeric'
 		});
-	}
-
-	function formatDateTime(dateString: string): string {
-		return new Date(dateString).toLocaleDateString('en-US', {
-			year: 'numeric',
-			month: 'short',
-			day: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit'
-		});
-	}
-
-	function getVisitTypeColor(
-		visitType: string
-	): 'default' | 'secondary' | 'destructive' | 'outline' {
-		switch (visitType) {
-			case 'emergency':
-				return 'destructive';
-			case 'illness':
-			case 'injury':
-				return 'default';
-			case 'checkup':
-				return 'secondary';
-			default:
-				return 'outline';
-		}
-	}
-
-	function getSeverityColor(severity: string): 'default' | 'secondary' | 'destructive' | 'outline' {
-		switch (severity) {
-			case 'critical':
-			case 'high':
-				return 'destructive';
-			case 'medium':
-				return 'default';
-			case 'low':
-				return 'secondary';
-			default:
-				return 'outline';
-		}
 	}
 
 	function getRelationshipIcon(relationship: string) {
@@ -363,58 +323,18 @@
 						</Card.Title>
 					</Card.Header>
 					<Card.Content>
-						{#if recentVisits.length > 0}
-							<Table.Root>
-								<Table.Header>
-									<Table.Row>
-										<Table.Head>Date & Time</Table.Head>
-										<Table.Head>Type</Table.Head>
-										<Table.Head>Chief Complaint</Table.Head>
-										<Table.Head>Severity</Table.Head>
-										<Table.Head>Status</Table.Head>
-										<Table.Head>Actions</Table.Head>
-									</Table.Row>
-								</Table.Header>
-								<Table.Body>
-									{#each recentVisits as visit}
-										<Table.Row>
-											<Table.Cell class="text-sm">
-												{formatDateTime(visit.checkInTime)}
-											</Table.Cell>
-											<Table.Cell>
-												<Badge variant={getVisitTypeColor(visit.visitType)}>
-													{toTitleCase(visit.visitType)}
-												</Badge>
-											</Table.Cell>
-											<Table.Cell class="max-w-[250px] text-sm">
-												{visit.chiefComplaint}
-											</Table.Cell>
-											<Table.Cell>
-												<Badge variant={getSeverityColor(visit.severity)}>
-													{toTitleCase(visit.severity)}
-												</Badge>
-											</Table.Cell>
-											<Table.Cell>
-												<Badge variant={visit.status === 'completed' ? 'secondary' : 'default'}>
-													{toTitleCase(visit.status)}
-												</Badge>
-											</Table.Cell>
-											<Table.Cell>
-												<Button variant="ghost" size="sm" onclick={() => handleViewVisit(visit.id)}>
-													View
-												</Button>
-											</Table.Cell>
-										</Table.Row>
-									{/each}
-								</Table.Body>
-							</Table.Root>
-						{:else}
-							<div class="py-12 text-center">
-								<Clock class="mx-auto mb-4 size-12 text-muted-foreground/50" />
-								<h3 class="mb-2 text-lg font-medium">No clinic visits recorded</h3>
-								<p class="mb-4 text-sm text-muted-foreground">
-									This student hasn't visited the clinic yet.
-								</p>
+						<VisitsTable
+							visits={recentVisits}
+							showStudentInfo={false}
+							showVisitNumber={false}
+							maxHeight="600px"
+							emptyStateTitle="No clinic visits recorded"
+							emptyStateDescription="This student hasn't visited the clinic yet."
+							onViewVisit={handleViewVisit}
+						/>
+
+						{#if recentVisits.length === 0}
+							<div class="py-4 text-center">
 								<Button onclick={handleNewVisit}>
 									<Plus class="mr-2 size-4" />
 									Record First Visit

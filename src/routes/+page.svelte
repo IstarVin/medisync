@@ -1,6 +1,9 @@
 <script lang="ts">
-	import RecentVisitsTable from '$lib/components/recent-visits-table.svelte';
+	import Label from '$lib/components/ui/label/label.svelte';
+	import Switch from '$lib/components/ui/switch/switch.svelte';
 	import VisitSummaryCards from '$lib/components/visit-summary-cards.svelte';
+	import VisitsTable from '$lib/components/visits-table.svelte';
+	import { app } from '$lib/states/app.svelte.js';
 
 	let { data } = $props();
 
@@ -30,13 +33,19 @@
 <main class="mx-5 flex w-full flex-1 flex-col">
 	<!-- Dashboard header -->
 	<header class="border-b border-border bg-background px-4 py-6 md:px-6">
-		<div class="flex min-w-0 flex-col gap-2">
-			<h1 class="medical-typography-heading text-2xl text-foreground md:text-3xl lg:text-4xl">
-				Dashboard
-			</h1>
-			<p class="medical-typography-body text-sm text-muted-foreground md:text-base lg:text-lg">
-				Welcome back, Nurse Emily Carter
-			</p>
+		<div class="flex items-center justify-between">
+			<div class="flex min-w-0 flex-1 flex-col gap-2">
+				<h1 class="medical-typography-heading text-2xl text-foreground md:text-3xl lg:text-4xl">
+					Dashboard
+				</h1>
+				<p class="medical-typography-body text-sm text-muted-foreground md:text-base lg:text-lg">
+					Welcome back, Nurse Emily Carter
+				</p>
+			</div>
+			<div class="flex items-center gap-3">
+				<Switch id="qrEnabled" bind:checked={app.qrEnabled} />
+				<Label for="qrEnabled">Enable QR</Label>
+			</div>
 		</div>
 	</header>
 
@@ -59,6 +68,13 @@
 			</h2>
 		</div>
 
-		<RecentVisitsTable visits={data.recentVisits} />
+		<div class="px-4 md:px-6">
+			<VisitsTable
+				visits={data.recentVisits}
+				maxHeight="500px"
+				emptyStateTitle="No recent visits"
+				emptyStateDescription="When students visit the clinic, their information will appear here. The most recent visits are displayed for quick access."
+			/>
+		</div>
 	</section>
 </main>

@@ -288,20 +288,20 @@
 				<h2 class="medical-typography-heading text-xl text-foreground md:text-2xl">
 					Student Management
 				</h2>
-				<div class="flex flex-wrap gap-4 text-sm text-muted-foreground">
-					<div class="flex items-center gap-1">
+				<!-- <div class="flex flex-wrap gap-4 text-sm text-muted-foreground"> -->
+				<!-- <div class="flex items-center gap-1">
 						<GraduationCap class="size-4" />
 						<span>{studentStats.total} Total Students</span>
 					</div>
 					<div class="flex items-center gap-1">
 						<Heart class="size-4" />
 						<span>{studentStats.withMedicalConditions} With Medical Conditions</span>
-					</div>
-					<!-- <div class="flex items-center gap-1">
+					</div> -->
+				<!-- <div class="flex items-center gap-1">
 						<UserPlus class="size-4" />
 						<span>{studentStats.recentlyEnrolled} Recently Enrolled</span>
 					</div> -->
-				</div>
+				<!-- </div> -->
 			</div>
 
 			<Button onclick={handleAddStudent} class="w-full md:w-auto">

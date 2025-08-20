@@ -1,23 +1,10 @@
 <script lang="ts">
-	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
-	import * as Table from '$lib/components/ui/table/index.js';
+	import VisitsTable from '$lib/components/visits-table.svelte';
 	import { toTitleCase } from '$lib/utils';
-	import {
-		Activity,
-		AlertCircle,
-		ArrowLeft,
-		ArrowRight,
-		Calendar,
-		Eye,
-		Funnel,
-		Plus,
-		Search,
-		Stethoscope,
-		X
-	} from '@lucide/svelte';
+	import { ArrowLeft, ArrowRight, Calendar, Funnel, Search, X } from '@lucide/svelte';
 	import type { PageData } from './$types';
 
 	// Props from the load function
@@ -25,14 +12,6 @@
 
 	// Types based on database schema
 	type VisitStatus = 'active' | 'completed' | 'cancelled';
-	type VisitType =
-		| 'emergency'
-		| 'illness'
-		| 'injury'
-		| 'medication'
-		| 'checkup'
-		| 'mental_health'
-		| 'other';
 	type Severity = 'low' | 'medium' | 'high' | 'critical';
 
 	type FilterOptions = {
@@ -41,34 +20,6 @@
 		severity: Severity | '';
 		grade: string;
 		dateRange: string;
-	};
-
-	type Visit = {
-		id: string;
-		visitNumber: number;
-		checkInTime: Date | string;
-		checkOutTime: Date | string | null;
-		visitType: VisitType;
-		status: VisitStatus;
-		severity: Severity;
-		chiefComplaint: string;
-		isEmergency: boolean;
-		parentNotified: boolean;
-		student: {
-			id: string;
-			studentId: string;
-			firstName: string;
-			lastName: string;
-			grade: string;
-			section: string | null;
-			profilePicture: string | null;
-		} | null;
-		attendedBy: {
-			id: string;
-			firstName: string;
-			lastName: string;
-			role: 'admin' | 'nurse' | 'doctor' | 'staff';
-		} | null;
 	};
 
 	// Client-side reactive state using Svelte 5 runes
@@ -224,68 +175,6 @@
 	);
 
 	// Helper functions
-	function formatDateTime(date: Date): string {
-		return new Intl.DateTimeFormat('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric',
-			hour: 'numeric',
-			minute: '2-digit',
-			hour12: true
-		}).format(date);
-	}
-
-	function formatTime(date: Date): string {
-		return new Intl.DateTimeFormat('en-US', {
-			hour: 'numeric',
-			minute: '2-digit',
-			hour12: true
-		}).format(date);
-	}
-
-	function getVisitDuration(checkIn: Date, checkOut: Date | null): string {
-		if (!checkOut) return 'Ongoing';
-
-		const diffMs = checkOut.getTime() - checkIn.getTime();
-		const diffMins = Math.floor(diffMs / (1000 * 60));
-
-		if (diffMins < 60) {
-			return `${diffMins}m`;
-		} else {
-			const hours = Math.floor(diffMins / 60);
-			const mins = diffMins % 60;
-			return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
-		}
-	}
-
-	function getStatusBadgeVariant(status: VisitStatus) {
-		switch (status) {
-			case 'active':
-				return 'default';
-			case 'completed':
-				return 'secondary';
-			case 'cancelled':
-				return 'destructive';
-			default:
-				return 'outline';
-		}
-	}
-
-	function getSeverityBadgeVariant(severity: Severity) {
-		switch (severity) {
-			case 'critical':
-				return 'destructive';
-			case 'high':
-				return 'destructive';
-			case 'medium':
-				return 'default';
-			case 'low':
-				return 'secondary';
-			default:
-				return 'outline';
-		}
-	}
-
 	function clearFilters() {
 		searchQuery = '';
 		filters = {
@@ -332,30 +221,7 @@
 				<h2 class="medical-typography-heading text-xl text-foreground md:text-2xl">
 					Visit Records
 				</h2>
-				<div class="flex flex-wrap gap-4 text-sm text-muted-foreground">
-					<div class="flex items-center gap-1">
-						<Stethoscope class="size-4" />
-						<span>{visitStats.total} Total Visits</span>
-					</div>
-					<div class="flex items-center gap-1">
-						<Activity class="size-4" />
-						<span>{visitStats.active} Active</span>
-					</div>
-					<div class="flex items-center gap-1">
-						<Calendar class="size-4" />
-						<span>{visitStats.todayVisits} Today</span>
-					</div>
-					<div class="flex items-center gap-1">
-						<AlertCircle class="size-4" />
-						<span>{visitStats.emergency} Emergency</span>
-					</div>
-				</div>
 			</div>
-
-			<Button href="/visits/new" class="w-full md:w-auto">
-				<Plus class="mr-2 size-4" />
-				New Visit
-			</Button>
 		</div>
 
 		<!-- Search and Filters -->
@@ -494,125 +360,25 @@
 		</div>
 
 		<!-- Visits Table -->
-		<div class="rounded-lg border border-border bg-background">
-			<Table.Root>
-				<Table.Header>
-					<Table.Row>
-						<Table.Head class="w-[80px]">Visit #</Table.Head>
-						<Table.Head class="w-[260px]">Student</Table.Head>
-						<!-- <Table.Head class="hidden md:table-cell">Type & Status</Table.Head> -->
-						<Table.Head>Reason for visit</Table.Head>
-						<Table.Head class="hidden lg:table-cell">Time</Table.Head>
-						<Table.Head class="hidden lg:table-cell">Duration</Table.Head>
-						<Table.Head class="w-[120px]">Actions</Table.Head>
-					</Table.Row>
-				</Table.Header>
-				<Table.Body>
-					{#if paginatedVisits.length === 0}
-						<Table.Row>
-							<Table.Cell colspan={7} class="py-8 text-center">
-								{#if hasActiveFilters}
-									<div class="flex flex-col items-center gap-2">
-										<Search class="size-8 text-muted-foreground" />
-										<div class="text-sm text-muted-foreground">
-											No visits found matching your criteria
-										</div>
-										<Button variant="outline" onclick={clearFilters} class="mt-2">
-											Clear Filters
-										</Button>
-									</div>
-								{:else if allVisits.length === 0}
-									<div class="flex flex-col items-center gap-2">
-										<Stethoscope class="size-8 text-muted-foreground" />
-										<div class="text-sm text-muted-foreground">No visits recorded yet</div>
-										<Button href="/visits/new" class="mt-2">
-											<Plus class="mr-2 size-4" />
-											Record First Visit
-										</Button>
-									</div>
-								{:else}
-									<div class="flex flex-col items-center gap-2">
-										<Search class="size-8 text-muted-foreground" />
-										<div class="text-sm text-muted-foreground">No visits match your search</div>
-										<Button variant="outline" onclick={clearFilters} class="mt-2">
-											Clear Filters
-										</Button>
-									</div>
-								{/if}
-							</Table.Cell>
-						</Table.Row>
-					{:else}
-						{#each paginatedVisits as visit (visit.id)}
-							<Table.Row class="hover:bg-muted/50">
-								<Table.Cell class="font-mono text-sm">
-									#{visit.visitNumber}
-								</Table.Cell>
-								<Table.Cell>
-									<div class="flex items-center gap-3">
-										<div
-											class="flex size-10 items-center justify-center rounded-full bg-primary/10 font-medium text-primary"
-										>
-											{visit.student?.firstName[0] || '?'}{visit.student?.lastName[0] || '?'}
-										</div>
-										<div class="flex min-w-0 flex-col">
-											<div class="font-medium text-foreground">
-												{visit.student?.firstName || 'Unknown'}
-												{visit.student?.lastName || 'Student'}
-											</div>
-											<div class="text-sm text-muted-foreground">
-												{visit.student?.studentId || 'N/A'} • {visit.student?.grade || 'N/A'}{visit
-													.student?.section
-													? ` - ${visit.student.section}`
-													: ''}
-											</div>
-										</div>
-									</div>
-								</Table.Cell>
-								<Table.Cell>
-									<div class="min-w-0">
-										<div class="truncate text-sm font-medium">{visit.chiefComplaint}</div>
-										<div class="mt-1 flex flex-wrap gap-1 md:hidden">
-											<Badge variant="outline" class="text-xs">
-												{toTitleCase(visit.visitType.replace('_', ' '))}
-											</Badge>
-											<Badge variant={getStatusBadgeVariant(visit.status)} class="text-xs">
-												{toTitleCase(visit.status)}
-											</Badge>
-										</div>
-										{#if visit.attendedBy}
-											<div class="mt-1 text-xs text-muted-foreground">
-												by {visit.attendedBy.firstName}
-												{visit.attendedBy.lastName}
-											</div>
-										{/if}
-									</div>
-								</Table.Cell>
-								<Table.Cell class="hidden lg:table-cell">
-									<div class="flex flex-col gap-1 text-sm">
-										<div class="flex items-center gap-1">
-											{formatDateTime(visit.checkInTime).split(' at ')[0]}
-										</div>
-									</div>
-								</Table.Cell>
-								<Table.Cell class="hidden lg:table-cell">
-									<div class="text-sm">
-										{getVisitDuration(visit.checkInTime, visit.checkOutTime)}
-									</div>
-								</Table.Cell>
-								<Table.Cell>
-									<div class="flex items-center gap-1">
-										<Button variant="ghost" size="icon" class="size-8" href="/visits/{visit.id}">
-											<Eye class="size-4" />
-											<span class="sr-only">View visit</span>
-										</Button>
-									</div>
-								</Table.Cell>
-							</Table.Row>
-						{/each}
-					{/if}
-				</Table.Body>
-			</Table.Root>
-		</div>
+		<VisitsTable
+			visits={paginatedVisits}
+			onViewVisit={(visitId) => (window.location.href = `/visits/${visitId}`)}
+		/>
+
+		<!-- Empty state for filtered results -->
+		{#if paginatedVisits.length === 0 && hasActiveFilters}
+			<div class="flex flex-col items-center gap-4 py-8">
+				<Search class="size-12 text-muted-foreground/50" />
+				<div class="text-center">
+					<h3 class="text-lg font-medium">No visits found</h3>
+					<p class="text-sm text-muted-foreground">No visits match your current search criteria.</p>
+				</div>
+				<Button variant="outline" onclick={clearFilters}>
+					<X class="mr-2 size-4" />
+					Clear Filters
+				</Button>
+			</div>
+		{/if}
 
 		<!-- Pagination -->
 		{#if paginationInfo.totalPages > 1}

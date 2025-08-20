@@ -3,6 +3,8 @@
 	import MobileMenuButton from '$lib/components/mobile-menu-button.svelte';
 	import MobileNavigation from '$lib/components/mobile-navigation.svelte';
 	import SidebarNavigation from '$lib/components/sidebar-navigation.svelte';
+	import { app } from '$lib/states/app.svelte';
+	import { onMount } from 'svelte';
 	import '../app.css';
 
 	let { children, data } = $props();
@@ -17,6 +19,19 @@
 	function closeMobileMenu() {
 		isMobileMenuOpen = false;
 	}
+
+	onMount(() => {
+		let qrEnabled = localStorage.getItem('qrEnabled');
+		if (qrEnabled) {
+			app.qrEnabled = qrEnabled === 'true';
+		} else {
+			localStorage.setItem('qrEnabled', String(app.qrEnabled));
+		}
+	});
+
+	$effect(() => {
+		localStorage.setItem('qrEnabled', String(app.qrEnabled));
+	});
 </script>
 
 <svelte:head>
