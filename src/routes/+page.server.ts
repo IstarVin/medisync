@@ -20,8 +20,7 @@ export const load: PageServerLoad = async () => {
 		.where(
 			and(
 				baseCondition,
-				sql`date_trunc('month', ${clinicVisits.checkOutTime}) = date_trunc('month', current_date)`,
-				sql`date_trunc('year', ${clinicVisits.checkOutTime}) = date_trunc('year', current_date)`
+				sql`date_trunc('month', ${clinicVisits.checkOutTime}) = date_trunc('month', current_date)`
 			)
 		);
 
@@ -32,8 +31,7 @@ export const load: PageServerLoad = async () => {
 		.where(
 			and(
 				baseCondition,
-				sql`${clinicVisits.checkOutTime} >= current_date`,
-				sql`${clinicVisits.checkOutTime} < current_date + interval '1 day'`
+				sql`date_trunc('day', ${clinicVisits.checkOutTime}) = date_trunc('day', current_date)`
 			)
 		);
 

@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db/index.js';
 import { clinicVisits, emergencyContacts, students, users } from '$lib/server/db/schema.js';
-import { error } from '@sveltejs/kit';
+import { error, isHttpError } from '@sveltejs/kit';
 import { desc, eq } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			})
 			.from(students)
 			.leftJoin(users, eq(students.doctorId, users.id))
-			.where(eq(students.id, studentId));
+			.where(eq(students.studentId, studentId));
 
 		if (!student) {
 			throw error(404, {
@@ -52,7 +52,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		const emergencyContactsList = await db
 			.select()
 			.from(emergencyContacts)
-			.where(eq(emergencyContacts.studentId, studentId))
+			.where(eq(emergencyContacts.studentId, student.id))
 			.orderBy(emergencyContacts.priority);
 
 		// Fetch recent clinic visits (last 10 visits)
@@ -77,7 +77,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			})
 			.from(clinicVisits)
 			.leftJoin(users, eq(clinicVisits.attendedById, users.id))
-			.where(eq(clinicVisits.studentId, studentId))
+			.where(eq(clinicVisits.studentId, student.id))
 			.orderBy(desc(clinicVisits.checkInTime))
 			.limit(10);
 
@@ -118,7 +118,7 @@ export const load: PageServerLoad = async ({ params }) => {
 	} catch (err) {
 		console.error('Error loading student:', err);
 
-		if (err instanceof Error && 'status' in err) {
+		if (isHttpError(err)) {
 			throw err; // Re-throw SvelteKit errors
 		}
 

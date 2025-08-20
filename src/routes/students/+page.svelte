@@ -539,7 +539,7 @@
 											variant="ghost"
 											size="icon"
 											class="size-8"
-											href="/students/{student.id}"
+											href="/students/{student.studentId}"
 										>
 											<Eye class="size-4" />
 											<span class="sr-only">View student</span>
