@@ -267,9 +267,7 @@
 			<Card class="lg:col-span-3">
 				<CardHeader>
 					<CardTitle>API Key Management</CardTitle>
-					<CardDescription>
-						Manage API keys for external integrations and automated access.
-					</CardDescription>
+					<CardDescription>Manage API keys for QR code scanner.</CardDescription>
 				</CardHeader>
 				<CardContent class="space-y-6">
 					<!-- Create New API Key -->
