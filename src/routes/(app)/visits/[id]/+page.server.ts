@@ -20,7 +20,14 @@ export const load: PageServerLoad = async ({ params }) => {
 						lastName: true,
 						grade: true,
 						section: true,
-						profilePicture: true
+						profilePicture: true,
+						dateOfBirth: true,
+						chronicHealthConditions: true,
+						currentMedications: true,
+						healthHistory: true
+					},
+					with: {
+						emergencyContacts: true
 					}
 				},
 				attendedBy: {

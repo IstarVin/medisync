@@ -1,23 +1,34 @@
 import * as auth from '$lib/server/auth';
-import { hash } from '@node-rs/argon2';
+import { db } from '$lib/server/db';
+import { users } from '$lib/server/db/schema';
+import { serverState } from '$lib/server/state';
 import { error, redirect, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
+import { eq } from 'drizzle-orm';
 
 const handleAuth: Handle = async ({ event, resolve }) => {
-	const sessionToken = event.cookies.get(auth.sessionCookieName);
-
 	const route = event.route.id;
 	if (!route) {
 		return error(404);
 	}
 
+	if (!serverState.init) {
+		const admin = await db.query.users.findFirst({ where: eq(users.role, 'admin') });
+
+		if (!admin && !route.includes('init')) {
+			return redirect(302, '/init');
+		}
+	}
+
+	const sessionToken = event.cookies.get(auth.sessionCookieName);
+
 	if (sessionToken) {
 		const res = await auth.validateSessionToken(sessionToken);
 
-		event.locals.user = res.user;
-		event.locals.session = res.session;
-
-		if (!res.user) {
+		if (res.user) {
+			event.locals.user = res.user;
+			event.locals.session = res.session;
+		} else {
 			auth.deleteSessionTokenCookie(event);
 		}
 	}
@@ -53,5 +64,3 @@ const handleTheme: Handle = async ({ event, resolve }) => {
 };
 
 export const handle: Handle = sequence(handleTheme, handleAuth);
-
-console.log(await hash('password123'));
