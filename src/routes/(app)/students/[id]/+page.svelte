@@ -369,6 +369,8 @@
 							visits={recentVisits}
 							showStudentInfo={false}
 							showVisitNumber={false}
+							showSeverity={true}
+							showVisitType={true}
 							maxHeight="600px"
 							emptyStateTitle="No clinic visits recorded"
 							emptyStateDescription="This student hasn't visited the clinic yet."

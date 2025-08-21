@@ -360,7 +360,7 @@
 		</div>
 
 		<!-- Visits Table -->
-		<VisitsTable visits={paginatedVisits} />
+		<VisitsTable visits={paginatedVisits} showSeverity={true} showVisitType={true} />
 
 		<!-- Empty state for filtered results -->
 		{#if paginatedVisits.length === 0 && hasActiveFilters}

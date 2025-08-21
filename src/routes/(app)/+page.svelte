@@ -129,6 +129,8 @@
 			<VisitsTable
 				visits={data.recentVisits}
 				showVisitNumber={false}
+				showSeverity={true}
+				showVisitType={true}
 				maxHeight="500px"
 				emptyStateTitle="No recent visits"
 				emptyStateDescription="When students visit the clinic, their information will appear here. The most recent visits are displayed for quick access."

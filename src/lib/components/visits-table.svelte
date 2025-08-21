@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -45,6 +46,8 @@
 		visits: Visit[];
 		showStudentInfo?: boolean;
 		showVisitNumber?: boolean;
+		showSeverity?: boolean;
+		showVisitType?: boolean;
 		showActions?: boolean;
 		maxHeight?: string;
 		emptyStateTitle?: string;
@@ -57,6 +60,8 @@
 		visits,
 		showStudentInfo = true,
 		showVisitNumber = true,
+		showSeverity = true,
+		showVisitType = true,
 		showActions = true,
 		maxHeight = 'auto',
 		emptyStateTitle = 'No visits recorded',
@@ -127,6 +132,42 @@
 		}
 	}
 
+	function formatVisitType(visitType: Visit['visitType']): string {
+		switch (visitType) {
+			case 'emergency':
+				return 'Emergency';
+			case 'illness':
+				return 'Illness';
+			case 'injury':
+				return 'Injury';
+			case 'medication':
+				return 'Medication';
+			case 'checkup':
+				return 'Checkup';
+			case 'mental_health':
+				return 'Mental Health';
+			case 'other':
+				return 'Other';
+			default:
+				return 'Unknown';
+		}
+	}
+
+	function formatSeverity(severity: Visit['severity']): string {
+		switch (severity) {
+			case 'critical':
+				return 'Critical';
+			case 'high':
+				return 'High';
+			case 'medium':
+				return 'Medium';
+			case 'low':
+				return 'Low';
+			default:
+				return 'Unknown';
+		}
+	}
+
 	function handleViewVisit(visitId: string) {
 		if (onViewVisit) {
 			onViewVisit(visitId);
@@ -170,6 +211,12 @@
 								<Table.Head class="min-w-[120px] font-medium">Section</Table.Head>
 							{/if}
 							<Table.Head class="min-w-[250px] font-medium">Reason</Table.Head>
+							{#if showVisitType}
+								<Table.Head class="min-w-[120px] font-medium">Type</Table.Head>
+							{/if}
+							{#if showSeverity}
+								<Table.Head class="min-w-[100px] font-medium">Severity</Table.Head>
+							{/if}
 							<Table.Head class="min-w-[100px] font-medium">Time</Table.Head>
 							<Table.Head class="min-w-[100px] font-medium">Date</Table.Head>
 							{#if showActions}
@@ -223,6 +270,20 @@
 										</span>
 									</div>
 								</Table.Cell>
+								{#if showVisitType}
+									<Table.Cell>
+										<Badge variant={getVisitTypeBadgeVariant(visit.visitType)} class="text-xs">
+											{formatVisitType(visit.visitType)}
+										</Badge>
+									</Table.Cell>
+								{/if}
+								{#if showSeverity}
+									<Table.Cell>
+										<Badge variant={getSeverityBadgeVariant(visit.severity)} class="text-xs">
+											{formatSeverity(visit.severity)}
+										</Badge>
+									</Table.Cell>
+								{/if}
 								<Table.Cell>
 									<div class="flex items-center gap-1 text-sm text-foreground">
 										<!-- <Clock class="size-3 text-muted-foreground" /> -->
@@ -259,7 +320,7 @@
 	/* Ensure table maintains good spacing on mobile */
 	@media (max-width: 768px) {
 		:global(.visits-table-container table) {
-			min-width: 700px;
+			min-width: 900px;
 		}
 	}
 </style>
