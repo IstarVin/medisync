@@ -196,6 +196,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Staffs</title>
+</svelte:head>
+
 <div class="mx-5 w-full space-y-6 p-6">
 	<!-- Header -->
 	<div class="flex items-center justify-between">

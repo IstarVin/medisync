@@ -110,22 +110,8 @@
 			case 'high':
 				return 'destructive';
 			case 'medium':
-				return 'default';
-			case 'low':
-				return 'secondary';
-			default:
 				return 'outline';
-		}
-	}
-
-	function getVisitTypeBadgeVariant(visitType: Visit['visitType']) {
-		switch (visitType) {
-			case 'emergency':
-				return 'destructive';
-			case 'illness':
-			case 'injury':
-				return 'default';
-			case 'checkup':
+			case 'low':
 				return 'secondary';
 			default:
 				return 'outline';
@@ -272,7 +258,7 @@
 								</Table.Cell>
 								{#if showVisitType}
 									<Table.Cell>
-										<Badge variant={getVisitTypeBadgeVariant(visit.visitType)} class="text-xs">
+										<Badge variant="outline" class="text-xs">
 											{formatVisitType(visit.visitType)}
 										</Badge>
 									</Table.Cell>

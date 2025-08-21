@@ -23,7 +23,7 @@
 </script>
 
 <svelte:head>
-	<title>New Visit - {data.student.firstName} {data.student.lastName} - MediSYNC</title>
+	<title>New Visit - {data.student.firstName} {data.student.lastName}</title>
 	<meta
 		name="description"
 		content="Create a new clinic visit for {data.student.firstName} {data.student.lastName}"

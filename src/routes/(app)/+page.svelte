@@ -81,6 +81,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>Dashboard</title>
+</svelte:head>
+
 <!-- Modern responsive dashboard layout -->
 <main class="mx-5 flex w-full flex-1 flex-col">
 	<!-- Dashboard header -->

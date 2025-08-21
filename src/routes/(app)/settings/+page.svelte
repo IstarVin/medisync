@@ -86,7 +86,7 @@
 </script>
 
 <svelte:head>
-	<title>Settings - MediSYNC</title>
+	<title>Settings</title>
 </svelte:head>
 
 <div class="container mx-auto space-y-8 px-4 py-6">

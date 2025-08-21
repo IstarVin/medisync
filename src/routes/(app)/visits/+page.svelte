@@ -208,7 +208,7 @@
 </script>
 
 <svelte:head>
-	<title>Visits - MediSYNC</title>
+	<title>Visits</title>
 	<meta name="description" content="View and manage clinic visit records" />
 </svelte:head>
 

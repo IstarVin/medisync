@@ -276,7 +276,7 @@
 </script>
 
 <svelte:head>
-	<title>Students - MediSYNC</title>
+	<title>Students</title>
 	<meta name="description" content="Manage student information and medical records" />
 </svelte:head>
 

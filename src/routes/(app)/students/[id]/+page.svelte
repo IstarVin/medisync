@@ -117,7 +117,7 @@
 </script>
 
 <svelte:head>
-	<title>{student.firstName} {student.lastName} - MediSYNC</title>
+	<title>{student.firstName} {student.lastName}</title>
 	<meta name="description" content="Student profile for {student.firstName} {student.lastName}" />
 </svelte:head>
 

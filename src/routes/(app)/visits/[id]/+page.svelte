@@ -135,7 +135,7 @@
 </script>
 
 <svelte:head>
-	<title>Visit Details - MediSYNC</title>
+	<title>Visit Details</title>
 </svelte:head>
 
 <div class="container mx-auto max-w-7xl px-4 py-8">
