@@ -90,9 +90,9 @@
 				<h1 class="medical-typography-heading text-2xl text-foreground md:text-3xl lg:text-4xl">
 					Dashboard
 				</h1>
-				<p class="medical-typography-body text-sm text-muted-foreground md:text-base lg:text-lg">
-					Welcome back, Nurse Emily Carter
-				</p>
+				<!-- <p
+					class="medical-typography-body text-sm text-muted-foreground md:text-base lg:text-lg"
+				></p> -->
 			</div>
 			<div class="flex items-center gap-3">
 				<Switch id="qrEnabled" bind:checked={app.qrEnabled} />

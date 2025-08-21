@@ -1,6 +1,7 @@
 import { relations } from 'drizzle-orm';
 import {
 	boolean,
+	index,
 	integer,
 	jsonb,
 	pgEnum,
@@ -75,6 +76,18 @@ export const users = pgTable('users', {
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	updatedAt: timestamp('updated_at').defaultNow().notNull()
 });
+
+export const session = pgTable(
+	'user_session',
+	{
+		id: text().primaryKey(),
+		userId: uuid()
+			.notNull()
+			.references(() => users.id),
+		expiresAt: timestamp({ withTimezone: true, mode: 'date' }).notNull()
+	},
+	(t) => [index('idx_usersession_user_id').on(t.userId)]
+);
 
 // Students table
 export const students = pgTable('students', {
@@ -293,3 +306,6 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
 		references: [users.id]
 	})
 }));
+
+export type Session = typeof session.$inferSelect;
+export type User = typeof users.$inferSelect;
