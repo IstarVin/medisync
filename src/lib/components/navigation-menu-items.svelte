@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Calendar, House, Users } from '@lucide/svelte';
+	import { Calendar, House, LogOut, Settings, Users } from '@lucide/svelte';
 
 	interface Props {
 		onNavClick?: () => void;
@@ -24,6 +24,11 @@
 			title: 'Visits',
 			href: '/visits',
 			icon: Calendar
+		},
+		{
+			title: 'Settings',
+			href: '/settings',
+			icon: Settings
 		}
 	];
 
@@ -71,3 +76,24 @@
 		</a>
 	{/each}
 </nav>
+
+<!-- Logout section -->
+<div class="mt-auto pt-6">
+	<a
+		href="/logout"
+		onclick={handleNavClick}
+		class="group flex items-center gap-3 rounded-xl px-4 py-3
+		       text-red-600 transition-all duration-200 ease-out
+		       hover:bg-red-50 hover:text-red-700
+		       focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500
+		       active:scale-[0.98] dark:text-red-400 dark:hover:bg-red-950/20 dark:hover:text-red-300"
+	>
+		<div
+			class="flex size-8 items-center justify-center rounded-lg bg-red-100 text-red-600 transition-colors
+			       group-hover:bg-red-200 dark:bg-red-950/30 dark:text-red-400 dark:group-hover:bg-red-950/50"
+		>
+			<LogOut size={18} />
+		</div>
+		<span class="font-medium">Logout</span>
+	</a>
+</div>

@@ -9,7 +9,7 @@
 <!-- Modern sidebar with enhanced styling and fixed positioning -->
 <div class="flex w-64 flex-col lg:w-80">
 	<div class="flex h-screen flex-col border-r border-sidebar-border bg-sidebar">
-		<div class="flex flex-col gap-6 overflow-y-auto p-6">
+		<div class="flex h-full flex-col gap-6 overflow-y-auto p-6">
 			<!-- Enhanced logo section -->
 			<div class="flex items-center justify-between">
 				<AppLogo />
@@ -17,7 +17,9 @@
 			</div>
 
 			<!-- Enhanced navigation menu -->
-			<NavigationMenuItems />
+			<div class="flex flex-1 flex-col">
+				<NavigationMenuItems />
+			</div>
 		</div>
 	</div>
 </div>

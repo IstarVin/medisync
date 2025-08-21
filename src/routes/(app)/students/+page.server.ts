@@ -1,5 +1,5 @@
 import { db } from '$lib/server/db/index.js';
-import { emergencyContacts, students } from '$lib/server/db/schema.js';
+import { emergencyContacts, students, users } from '$lib/server/db/schema.js';
 import { fail } from '@sveltejs/kit';
 import { asc, eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
@@ -15,6 +15,24 @@ export const load: PageServerLoad = async () => {
 			},
 			orderBy: [asc(students.lastName), asc(students.firstName)]
 		});
+
+		// Fetch available doctors for the form
+		const availableDoctors = await db
+			.select({
+				id: users.id,
+				name: users.firstName,
+				lastName: users.lastName,
+				role: users.role
+			})
+			.from(users)
+			.where(eq(users.role, 'doctor'))
+			.orderBy(users.firstName, users.lastName);
+
+		// Format doctor names for display
+		const formattedDoctors = availableDoctors.map((doctor) => ({
+			id: doctor.id,
+			name: `${doctor.name} ${doctor.lastName}`
+		}));
 
 		// Calculate statistics
 		const stats = {
@@ -41,6 +59,7 @@ export const load: PageServerLoad = async () => {
 
 		return {
 			students: allStudents,
+			availableDoctors: formattedDoctors,
 			stats,
 			filterOptions: {
 				grades: uniqueGrades,
@@ -53,6 +72,7 @@ export const load: PageServerLoad = async () => {
 		// Return empty state on error
 		return {
 			students: [],
+			availableDoctors: [],
 			stats: {
 				total: 0,
 				active: 0,
@@ -86,7 +106,8 @@ export const actions: Actions = {
 				address: formData.get('address') as string | null,
 				chronicHealthConditions: formData.get('chronicHealthConditions') as string | null,
 				currentMedications: formData.get('currentMedications') as string | null,
-				healthHistory: formData.get('healthHistory') as string | null
+				healthHistory: formData.get('healthHistory') as string | null,
+				doctorId: formData.get('doctorId') as string | null
 			};
 
 			// Extract emergency contacts data
@@ -183,6 +204,7 @@ export const actions: Actions = {
 									.filter(Boolean)
 							: [],
 						healthHistory: studentData.healthHistory || null,
+						doctorId: studentData.doctorId || null,
 						enrollmentDate: new Date(),
 						isActive: true
 					})
@@ -243,7 +265,8 @@ export const actions: Actions = {
 				address: formData.get('address') as string | null,
 				chronicHealthConditions: formData.get('chronicHealthConditions') as string | null,
 				currentMedications: formData.get('currentMedications') as string | null,
-				healthHistory: formData.get('healthHistory') as string | null
+				healthHistory: formData.get('healthHistory') as string | null,
+				doctorId: formData.get('doctorId') as string | null
 			};
 
 			// Extract emergency contacts data
@@ -338,6 +361,7 @@ export const actions: Actions = {
 									.filter(Boolean)
 							: [],
 						healthHistory: studentData.healthHistory || null,
+						doctorId: studentData.doctorId || null,
 						updatedAt: new Date()
 					})
 					.where(eq(students.id, studentId))

@@ -3,12 +3,14 @@
 	import { invalidateAll } from '$app/navigation';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { Calendar } from '$lib/components/ui/calendar/index.js';
+	import * as Command from '$lib/components/ui/command/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import * as Popover from '$lib/components/ui/popover/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import { Textarea } from '$lib/components/ui/textarea/index.js';
+	import type { NurseComboboxOption } from '$lib/types/nurse.js';
 	import { cn, toTitleCase } from '$lib/utils.js';
 	import {
 		CalendarDate,
@@ -17,8 +19,8 @@
 		today,
 		type DateValue
 	} from '@internationalized/date';
-	import { CalendarIcon, Loader2, Plus, Trash2 } from '@lucide/svelte';
-	import { onMount } from 'svelte';
+	import { CalendarIcon, Check, ChevronsUpDown, Loader2, Plus, Trash2 } from '@lucide/svelte';
+	import { onMount, tick } from 'svelte';
 
 	// Types
 	type EmergencyContact = {
@@ -48,6 +50,7 @@
 		chronicHealthConditions: string[];
 		currentMedications: string[];
 		healthHistory?: string | null;
+		doctorId?: string | null;
 		emergencyContacts?: EmergencyContact[];
 	};
 
@@ -56,12 +59,14 @@
 		open = $bindable(false),
 		mode = 'add',
 		student = null,
-		emergencyContacts = []
+		emergencyContacts = [],
+		availableDoctors = []
 	}: {
 		open?: boolean;
 		mode?: 'add' | 'edit';
 		student?: Student | null;
 		emergencyContacts?: EmergencyContact[];
+		availableDoctors?: NurseComboboxOption[];
 	} = $props();
 
 	// Form state
@@ -70,6 +75,22 @@
 
 	// Emergency contacts management
 	let emergencyContactsState = $state<EmergencyContact[]>([]);
+
+	// Doctor combobox state
+	let doctorComboboxOpen = $state(false);
+	let doctorTriggerRef = $state<HTMLButtonElement>(null!);
+
+	const selectedDoctor = $derived(
+		availableDoctors.find((doctor) => doctor.id === formData.doctorId)?.name
+	);
+
+	// Close combobox and refocus trigger
+	function closeDoctorComboboxAndFocusTrigger() {
+		doctorComboboxOpen = false;
+		tick().then(() => {
+			doctorTriggerRef.focus();
+		});
+	}
 
 	// Grade options
 	const gradeOptions = ['Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'];
@@ -106,7 +127,8 @@
 		address: '',
 		chronicHealthConditions: '',
 		currentMedications: '',
-		healthHistory: ''
+		healthHistory: '',
+		doctorId: ''
 	});
 
 	// Calendar state for date of birth
@@ -160,7 +182,8 @@
 			currentMedications: Array.isArray(studentData.currentMedications)
 				? studentData.currentMedications.join(', ')
 				: '',
-			healthHistory: studentData.healthHistory || ''
+			healthHistory: studentData.healthHistory || '',
+			doctorId: studentData.doctorId || ''
 		};
 
 		// Set emergency contacts
@@ -198,7 +221,8 @@
 			address: '',
 			chronicHealthConditions: '',
 			currentMedications: '',
-			healthHistory: ''
+			healthHistory: '',
+			doctorId: ''
 		};
 		emergencyContactsState = [createEmptyContact()];
 		dateOfBirth = undefined;
@@ -570,6 +594,62 @@
 						</p>
 						{#if errors.healthHistory}
 							<p class="text-sm text-destructive">{errors.healthHistory[0]}</p>
+						{/if}
+					</div>
+
+					<!-- Assigned Doctor -->
+					<div class="space-y-2">
+						<Label for="doctorId">Assigned Doctor</Label>
+						<Popover.Root bind:open={doctorComboboxOpen}>
+							<Popover.Trigger bind:ref={doctorTriggerRef} id="doctorId" class="w-full">
+								{#snippet child({ props })}
+									<Button
+										variant="outline"
+										class="w-full"
+										{...props}
+										role="combobox"
+										aria-expanded={doctorComboboxOpen}
+									>
+										{selectedDoctor || 'Select a doctor...'}
+										<ChevronsUpDown class="ml-2 size-4 shrink-0 opacity-50" />
+									</Button>
+								{/snippet}
+							</Popover.Trigger>
+							<Popover.Content class="w-full p-0">
+								<Command.Root>
+									<Command.Input placeholder="Search doctor..." />
+									<Command.List>
+										<Command.Empty>No doctor found.</Command.Empty>
+										<Command.Group>
+											{#each availableDoctors as doctor}
+												<Command.Item
+													class="cursor-pointer"
+													value={doctor.id}
+													onSelect={() => {
+														formData.doctorId = doctor.id;
+														closeDoctorComboboxAndFocusTrigger();
+													}}
+												>
+													<Check
+														class={cn(
+															'mr-2 size-4',
+															formData.doctorId !== doctor.id && 'text-transparent'
+														)}
+													/>
+													{doctor.name}
+												</Command.Item>
+											{/each}
+										</Command.Group>
+									</Command.List>
+								</Command.Root>
+							</Popover.Content>
+						</Popover.Root>
+						<input type="hidden" name="doctorId" bind:value={formData.doctorId} />
+						<p class="text-sm text-muted-foreground">
+							Select the doctor who will be responsible for this student's medical care.
+						</p>
+						{#if errors.doctorId}
+							<p class="text-sm text-destructive">{errors.doctorId[0]}</p>
 						{/if}
 					</div>
 				</div>

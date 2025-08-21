@@ -29,6 +29,7 @@ export const addStudentSchema = z.object({
 	chronicHealthConditions: z.string().optional(),
 	currentMedications: z.string().optional(),
 	healthHistory: z.string().max(1000, 'Health history must be 1000 characters or less').optional(),
+	doctorId: z.string().optional(),
 
 	// Emergency Contact (Primary)
 	emergencyContactName: z

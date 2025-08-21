@@ -622,5 +622,6 @@
 		mode={modalMode}
 		student={selectedStudent}
 		emergencyContacts={selectedEmergencyContacts}
+		availableDoctors={data.availableDoctors}
 	/>
 {/if}

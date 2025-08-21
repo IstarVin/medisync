@@ -74,7 +74,9 @@
 				<!-- Navigation content -->
 				<div class="flex flex-1 flex-col p-6">
 					<!-- Main navigation items -->
-					<NavigationMenuItems onNavClick={handleNavClick} />
+					<div class="flex flex-1 flex-col">
+						<NavigationMenuItems onNavClick={handleNavClick} />
+					</div>
 				</div>
 			</div>
 		</nav>
