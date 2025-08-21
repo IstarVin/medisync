@@ -2,7 +2,7 @@ import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib
 import { db } from '$lib/server/db';
 import { users } from '$lib/server/db/schema';
 import { verify } from '@node-rs/argon2';
-import { fail, isHttpError, redirect, type Actions } from '@sveltejs/kit';
+import { fail, isRedirect, redirect, type Actions } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
@@ -40,6 +40,9 @@ export const actions: Actions = {
 				return fail(401, { error: 'Invalid email or password.' });
 			}
 
+			// Update last login time
+			await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user.id));
+
 			// Create session using Lucia auth
 			const sessionToken = generateSessionToken();
 			const session = await createSession(sessionToken, user.id);
@@ -47,7 +50,7 @@ export const actions: Actions = {
 
 			return redirect(303, '/');
 		} catch (err) {
-			if (isHttpError(err)) {
+			if (isRedirect(err)) {
 				throw err;
 			}
 			console.error('Unknown error', err);

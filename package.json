@@ -60,6 +60,7 @@
 		"drizzle-orm": "^0.40.0",
 		"postgres": "^3.4.5",
 		"qr-scanner": "^1.4.2",
+		"svelte-sonner": "^1.0.5",
 		"zod": "^4.0.17"
 	},
 	"pnpm": {

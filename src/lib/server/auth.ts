@@ -31,7 +31,18 @@ export async function validateSessionToken(token: string) {
 	const [result] = await db
 		.select({
 			// Adjust user table here to tweak returned data
-			user: { id: table.users.id },
+			user: {
+				id: table.users.id,
+				email: table.users.email,
+				firstName: table.users.firstName,
+				lastName: table.users.lastName,
+				role: table.users.role,
+				phoneNumber: table.users.phoneNumber,
+				isActive: table.users.isActive,
+				lastLogin: table.users.lastLogin,
+				createdAt: table.users.createdAt,
+				updatedAt: table.users.updatedAt
+			},
 			session: table.session
 		})
 		.from(table.session)

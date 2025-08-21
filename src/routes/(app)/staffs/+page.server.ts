@@ -114,7 +114,7 @@ export const actions: Actions = {
 			}
 
 			// Generate a temporary password (in production, you might want to send this via email)
-			const temporaryPassword = 'temp123!'; // You should generate a random password
+			const temporaryPassword = crypto.randomUUID(); // You should generate a random password
 			const passwordHash = await hash(temporaryPassword, {
 				memoryCost: 19456,
 				timeCost: 2,
@@ -142,8 +142,8 @@ export const actions: Actions = {
 
 			return {
 				success: true,
-				message: `Staff member ${validatedData.firstName} ${validatedData.lastName} has been added successfully.`,
-				temporaryPassword // In production, don't return this - send via email instead
+				message: `Staff member ${validatedData.firstName} ${validatedData.lastName} has been added successfully.`
+				// temporaryPassword // In production, don't return this - send via email instead
 			};
 		} catch (error) {
 			console.error('Error adding staff member:', error);

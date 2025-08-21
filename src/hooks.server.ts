@@ -22,7 +22,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	if (!route.includes('(auth)')) {
+	if (route.includes('(app)')) {
 		if (!event.locals.user) {
 			event.locals.user = null;
 			event.locals.session = null;

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Calendar, House, LogOut, Users, UsersRound } from '@lucide/svelte';
+	import { Calendar, House, LogOut, Settings, Users, UsersRound } from '@lucide/svelte';
 
 	interface Props {
 		onNavClick?: () => void;
@@ -29,6 +29,11 @@
 			title: 'Staffs',
 			href: '/staffs',
 			icon: UsersRound
+		},
+		{
+			title: 'Settings',
+			href: '/settings',
+			icon: Settings
 		}
 	];
 

@@ -24,7 +24,6 @@
 		UserPlus,
 		Users
 	} from '@lucide/svelte';
-	import { onMount } from 'svelte';
 
 	// Define the staff type based on the server load data
 	type StaffMember = {
@@ -195,9 +194,6 @@
 
 		return formatDate(date);
 	}
-	onMount(() => {
-		// Any initialization logic
-	});
 </script>
 
 <div class="mx-5 w-full space-y-6 p-6">

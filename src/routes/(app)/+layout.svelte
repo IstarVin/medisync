@@ -5,6 +5,7 @@
 	import SidebarNavigation from '$lib/components/sidebar-navigation.svelte';
 	import { app } from '$lib/states/app.svelte';
 	import { onMount } from 'svelte';
+	import { Toaster } from 'svelte-sonner';
 
 	let { children, data } = $props();
 
@@ -118,6 +119,9 @@
 		</div>
 	</div>
 </div>
+
+<!-- Toast notifications -->
+<Toaster richColors position="top-right" />
 
 <style>
 	/* Enhanced focus management for accessibility */
