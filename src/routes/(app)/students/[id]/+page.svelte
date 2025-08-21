@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import EmailModal from '$lib/components/email-modal.svelte';
 	import NewVisitModal from '$lib/components/new-visit-modal.svelte';
 	import { Avatar, AvatarFallback, AvatarImage } from '$lib/components/ui/avatar/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
@@ -32,6 +33,12 @@
 
 	// Modal state
 	let newVisitModalOpen = $state(false);
+	let emailModalOpen = $state(false);
+	let predeterminedContact = $state<{
+		type: 'student' | 'emergency-contact' | 'doctor';
+		id?: string;
+		email: string;
+	} | null>(null);
 
 	// Helper functions
 	function calculateAge(dateOfBirth: string): number {
@@ -73,6 +80,32 @@
 		// Navigate to visit details
 		goto(`/visits/${visitId}`);
 	}
+
+	function handleSendMail(
+		email: string | null,
+		type: 'student' | 'emergency-contact' | 'doctor',
+		contactId?: string
+	) {
+		if (!email) {
+			return;
+		}
+
+		// Set the predetermined contact based on the call
+		predeterminedContact = {
+			type,
+			email,
+			...(contactId && { id: contactId })
+		};
+
+		emailModalOpen = true;
+	}
+
+	// Reset predetermined contact when modal closes
+	$effect(() => {
+		if (!emailModalOpen) {
+			predeterminedContact = null;
+		}
+	});
 
 	// Get initials for avatar
 	let studentInitials = $derived(`${student.firstName[0]}${student.lastName[0]}`.toUpperCase());
@@ -121,6 +154,10 @@
 					<Edit class="mr-2 size-4" />
 					Edit Student
 				</Button> -->
+				<Button variant="outline" onclick={() => (emailModalOpen = true)}>
+					<Mail class="mr-2 size-4" />
+					Send Email
+				</Button>
 				<Button onclick={handleNewVisit}>
 					<Plus class="mr-2 size-4" />
 					New Visit
@@ -170,12 +207,15 @@
 						</div>
 
 						{#if student.email}
-							<div class="flex items-center gap-2 text-xs">
+							<button
+								class="flex items-center gap-2 text-xs"
+								onclick={() => handleSendMail(student.email, 'student')}
+							>
 								<Mail class="size-3 text-muted-foreground" />
-								<a href="mailto:{student.email}" class="truncate text-primary hover:underline">
+								<span class="truncate text-primary hover:underline">
 									{student.email}
-								</a>
-							</div>
+								</span>
+							</button>
 						{/if}
 					</Card.Content>
 				</Card.Root>
@@ -192,7 +232,10 @@
 						{#if emergencyContacts.length > 0}
 							{#each emergencyContacts as contact}
 								{@const RelationshipIcon = getRelationshipIcon(contact.relationship)}
-								<div class="space-y-1 rounded-md border p-2">
+								<button
+									class="w-full space-y-1 rounded-md border p-2 hover:bg-gray-100 dark:hover:bg-gray-900"
+									onclick={() => handleSendMail(contact.email, 'emergency-contact', contact.id)}
+								>
 									<div class="flex items-center gap-2">
 										<RelationshipIcon class="size-3 text-muted-foreground" />
 										<span class="text-xs font-medium">{contact.name}</span>
@@ -201,23 +244,30 @@
 										</Badge>
 									</div>
 									<div class="space-y-0.5 text-xs text-muted-foreground">
-										<!-- <div class="capitalize">{contact.relationship}</div> -->
 										<div class="flex items-center gap-1">
 											<Phone class="size-2.5" />
-											<a href="tel:{contact.phoneNumber}" class="hover:text-foreground">
+											<a
+												href="tel:{contact.phoneNumber}"
+												onclick={(e) => e.stopPropagation()}
+												class="hover:text-foreground"
+											>
 												{contact.phoneNumber}
 											</a>
 										</div>
-										{#if contact.alternatePhone}
+										{#if contact.email}
 											<div class="flex items-center gap-1">
-												<Phone class="size-2.5" />
-												<a href="tel:{contact.alternatePhone}" class="hover:text-foreground">
-													{contact.alternatePhone} (Alt)
+												<Mail class="size-2.5" />
+												<a
+													href="mail:{contact.email}"
+													onclick={(e) => e.stopPropagation()}
+													class="hover:text-foreground"
+												>
+													{contact.email}
 												</a>
 											</div>
 										{/if}
 									</div>
-								</div>
+								</button>
 							{/each}
 						{:else}
 							<div class="text-xs text-muted-foreground">No emergency contacts recorded</div>
@@ -293,9 +343,12 @@
 										{student.doctorLastName}
 									</span>
 									{#if student.doctorEmail}
-										<a href="mailto:{student.doctorEmail}" class="text-primary hover:underline">
+										<button
+											onclick={() => handleSendMail(student.doctorEmail, 'doctor')}
+											class="text-primary hover:underline"
+										>
 											<Mail class="size-4" />
-										</a>
+										</button>
 									{/if}
 								</div>
 							</div>
@@ -339,3 +392,6 @@
 
 <!-- New Visit Modal -->
 <NewVisitModal bind:open={newVisitModalOpen} {student} availableNurses={data.availableNurses} />
+
+<!-- Email Modal -->
+<EmailModal bind:open={emailModalOpen} {student} {emergencyContacts} {predeterminedContact} />

@@ -1,5 +1,6 @@
 import { db } from '$lib/server/db/index.js';
 import { clinicVisits, emergencyContacts, students, users } from '$lib/server/db/schema.js';
+import { sendMailMessage } from '$lib/server/mail.js';
 import { error, fail, isHttpError } from '@sveltejs/kit';
 import { desc, eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
@@ -259,6 +260,296 @@ export const actions: Actions = {
 			console.error('Error creating visit:', error);
 			return fail(500, {
 				error: 'Failed to create visit. Please try again.'
+			});
+		}
+	},
+
+	sendEmergencyContactMail: async ({ request, params }) => {
+		try {
+			const formData = await request.formData();
+			const studentId = params.id;
+
+			// Extract form data
+			const mailData = {
+				contactId: formData.get('contactId') as string,
+				contactEmail: formData.get('contactEmail') as string,
+				subject: formData.get('subject') as string,
+				message: formData.get('message') as string
+			};
+
+			// Validate required fields
+			if (!mailData.subject.trim()) {
+				return fail(400, {
+					error: 'Subject is required'
+				});
+			}
+
+			if (!mailData.message.trim()) {
+				return fail(400, {
+					error: 'Message is required'
+				});
+			}
+
+			if (!mailData.contactEmail.trim()) {
+				return fail(400, {
+					error: 'Contact email is required'
+				});
+			}
+
+			// Verify student exists
+			const [student] = await db
+				.select({
+					id: students.id,
+					firstName: students.firstName,
+					lastName: students.lastName,
+					studentId: students.studentId
+				})
+				.from(students)
+				.where(eq(students.studentId, studentId))
+				.limit(1);
+
+			if (!student) {
+				return fail(400, {
+					error: 'Student not found'
+				});
+			}
+
+			// Verify emergency contact exists and belongs to this student
+			const [contact] = await db
+				.select({
+					id: emergencyContacts.id,
+					name: emergencyContacts.name,
+					relationship: emergencyContacts.relationship,
+					email: emergencyContacts.email
+				})
+				.from(emergencyContacts)
+				.where(eq(emergencyContacts.id, mailData.contactId))
+				.limit(1);
+
+			if (!contact) {
+				return fail(400, {
+					error: 'Emergency contact not found'
+				});
+			}
+
+			if (!contact.email) {
+				return fail(400, {
+					error: 'This contact does not have an email address on file'
+				});
+			}
+
+			// Create the email message with context
+			const emailContent = `
+Dear ${contact.name},
+
+This is an important message regarding ${student.firstName} ${student.lastName} (Student ID: ${student.studentId}).
+
+${mailData.message}
+
+---
+This message was sent from MediSYNC School Health Management System.
+Please contact the school if you have any questions or concerns.
+
+Best regards,
+School Health Office
+			`.trim();
+
+			// Send the email
+			await sendMailMessage(contact.email, emailContent, mailData.subject);
+
+			return {
+				success: true,
+				message: `Email sent successfully to ${contact.name} (${contact.email})`
+			};
+		} catch (error) {
+			console.error('Error sending emergency contact mail:', error);
+			return fail(500, {
+				error: 'Failed to send email. Please try again.'
+			});
+		}
+	},
+
+	sendEmail: async ({ request, params }) => {
+		try {
+			const formData = await request.formData();
+			const studentId = params.id;
+
+			// Extract form data
+			const emailData = {
+				recipientType: formData.get('recipientType') as string,
+				recipientId: formData.get('recipientId') as string,
+				recipientEmail: formData.get('recipientEmail') as string,
+				subject: formData.get('subject') as string,
+				message: formData.get('message') as string
+			};
+
+			// Validate required fields
+			if (!emailData.subject.trim()) {
+				return fail(400, {
+					error: 'Subject is required'
+				});
+			}
+
+			if (!emailData.message.trim()) {
+				return fail(400, {
+					error: 'Message is required'
+				});
+			}
+
+			if (!emailData.recipientEmail.trim()) {
+				return fail(400, {
+					error: 'Recipient email is required'
+				});
+			}
+
+			if (!['emergency_contact', 'student', 'doctor'].includes(emailData.recipientType)) {
+				return fail(400, {
+					error: 'Invalid recipient type'
+				});
+			}
+
+			// Verify student exists
+			const [student] = await db
+				.select({
+					id: students.id,
+					firstName: students.firstName,
+					lastName: students.lastName,
+					studentId: students.studentId,
+					email: students.email,
+					doctorId: students.doctorId
+				})
+				.from(students)
+				.where(eq(students.studentId, studentId))
+				.limit(1);
+
+			if (!student) {
+				return fail(400, {
+					error: 'Student not found'
+				});
+			}
+
+			let recipientName = '';
+			let emailContent = '';
+
+			// Handle different recipient types
+			if (emailData.recipientType === 'emergency_contact') {
+				// Verify emergency contact exists and belongs to this student
+				const [contact] = await db
+					.select({
+						id: emergencyContacts.id,
+						name: emergencyContacts.name,
+						relationship: emergencyContacts.relationship,
+						email: emergencyContacts.email,
+						studentId: emergencyContacts.studentId
+					})
+					.from(emergencyContacts)
+					.where(eq(emergencyContacts.id, emailData.recipientId))
+					.limit(1);
+
+				if (!contact || contact.studentId !== student.id) {
+					return fail(400, {
+						error: 'Emergency contact not found or does not belong to this student'
+					});
+				}
+
+				recipientName = contact.name;
+				emailContent = `
+Dear ${contact.name},
+
+This is an important message regarding ${student.firstName} ${student.lastName} (Student ID: ${student.studentId}).
+
+${emailData.message}
+
+---
+This message was sent from MediSYNC School Health Management System.
+Please contact the school if you have any questions or concerns.
+
+Best regards,
+School Health Office
+				`.trim();
+			} else if (emailData.recipientType === 'student') {
+				// Verify email matches student
+				if (emailData.recipientEmail !== student.email) {
+					return fail(400, {
+						error: 'Email address does not match student record'
+					});
+				}
+
+				recipientName = `${student.firstName} ${student.lastName}`;
+				emailContent = `
+Dear ${student.firstName},
+
+This is an important message from the school health office.
+
+${emailData.message}
+
+---
+This message was sent from MediSYNC School Health Management System.
+If you have any questions or concerns, please contact the school health office.
+
+Best regards,
+School Health Office
+				`.trim();
+			} else if (emailData.recipientType === 'doctor') {
+				// Verify doctor is assigned to this student
+				if (!student.doctorId) {
+					return fail(400, {
+						error: 'No doctor assigned to this student'
+					});
+				}
+
+				const [doctor] = await db
+					.select({
+						id: users.id,
+						firstName: users.firstName,
+						lastName: users.lastName,
+						email: users.email,
+						role: users.role
+					})
+					.from(users)
+					.where(eq(users.id, student.doctorId))
+					.limit(1);
+
+				if (!doctor || doctor.role !== 'doctor') {
+					return fail(400, {
+						error: 'Assigned doctor not found'
+					});
+				}
+
+				if (emailData.recipientEmail !== doctor.email) {
+					return fail(400, {
+						error: 'Email address does not match doctor record'
+					});
+				}
+
+				recipientName = `Dr. ${doctor.firstName} ${doctor.lastName}`;
+				emailContent = `
+Dear Dr. ${doctor.lastName},
+
+This is an important message regarding your patient ${student.firstName} ${student.lastName} (Student ID: ${student.studentId}).
+
+${emailData.message}
+
+---
+This message was sent from MediSYNC School Health Management System.
+Please contact the school if you need additional information.
+
+Best regards,
+School Health Office
+				`.trim();
+			}
+
+			// Send the email
+			await sendMailMessage(emailData.recipientEmail, emailContent, emailData.subject);
+
+			return {
+				success: true,
+				message: `Email sent successfully to ${recipientName} (${emailData.recipientEmail})`
+			};
+		} catch (error) {
+			console.error('Error sending email:', error);
+			return fail(500, {
+				error: 'Failed to send email. Please try again.'
 			});
 		}
 	}
