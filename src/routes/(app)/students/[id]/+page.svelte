@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import EmailModal from '$lib/components/email-modal.svelte';
 	import NewVisitModal from '$lib/components/new-visit-modal.svelte';
+	import QrModal from '$lib/components/qr-modal.svelte';
 	import { Avatar, AvatarFallback, AvatarImage } from '$lib/components/ui/avatar/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -17,6 +18,7 @@
 		Mail,
 		Phone,
 		Plus,
+		QrCode,
 		Stethoscope,
 		User,
 		UserCheck,
@@ -34,6 +36,7 @@
 	// Modal state
 	let newVisitModalOpen = $state(false);
 	let emailModalOpen = $state(false);
+	let qrModalOpen = $state(false);
 	let predeterminedContact = $state<{
 		type: 'student' | 'emergency-contact' | 'doctor';
 		id?: string;
@@ -69,6 +72,10 @@
 	// Actions
 	function handleBack() {
 		history.back();
+	}
+
+	function handleQrCode() {
+		qrModalOpen = true;
 	}
 
 	function handleNewVisit() {
@@ -117,7 +124,7 @@
 </script>
 
 <svelte:head>
-	<title>{student.firstName} {student.lastName}</title>
+	<title>Student - {student.firstName} {student.lastName}</title>
 	<meta name="description" content="Student profile for {student.firstName} {student.lastName}" />
 </svelte:head>
 
@@ -150,13 +157,9 @@
 			</div>
 
 			<div class="flex gap-2">
-				<!-- <Button variant="outline" onclick={handleEdit}>
-					<Edit class="mr-2 size-4" />
-					Edit Student
-				</Button> -->
-				<Button variant="outline" onclick={() => (emailModalOpen = true)}>
-					<Mail class="mr-2 size-4" />
-					Send Email
+				<Button onclick={handleQrCode} variant="outline">
+					<QrCode class="mr-2 size-4" />
+					QR Code
 				</Button>
 				<Button onclick={handleNewVisit}>
 					<Plus class="mr-2 size-4" />
@@ -204,19 +207,18 @@
 									<div>{toTitleCase(student.gender.replace('_', ' '))}</div>
 								</div>
 							</div>
+							{#if student.email}
+								<button
+									class="flex items-center gap-2 text-xs"
+									onclick={() => handleSendMail(student.email, 'student')}
+								>
+									<Mail class="size-3 text-muted-foreground" />
+									<span class="truncate text-primary hover:underline">
+										{student.email}
+									</span>
+								</button>
+							{/if}
 						</div>
-
-						{#if student.email}
-							<button
-								class="flex items-center gap-2 text-xs"
-								onclick={() => handleSendMail(student.email, 'student')}
-							>
-								<Mail class="size-3 text-muted-foreground" />
-								<span class="truncate text-primary hover:underline">
-									{student.email}
-								</span>
-							</button>
-						{/if}
 					</Card.Content>
 				</Card.Root>
 
@@ -327,7 +329,7 @@
 						{#if student.healthHistory}
 							<div>
 								<h4 class="mb-2 text-sm font-medium text-muted-foreground">Health History</h4>
-								<div class="rounded-md bg-muted/30 p-3 text-sm">{student.healthHistory}</div>
+								<div class="rounded-md p-3 text-sm">{student.healthHistory}</div>
 							</div>
 						{/if}
 
@@ -397,3 +399,11 @@
 
 <!-- Email Modal -->
 <EmailModal bind:open={emailModalOpen} {student} {emergencyContacts} {predeterminedContact} />
+
+<!-- QR Modal -->
+<QrModal
+	bind:isOpen={qrModalOpen}
+	onClose={() => (qrModalOpen = false)}
+	studentId={student.studentId}
+	studentName="{student.firstName} {student.lastName}"
+/>

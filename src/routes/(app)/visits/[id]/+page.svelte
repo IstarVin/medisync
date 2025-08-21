@@ -412,7 +412,9 @@
 									</div>
 									<ul class="space-y-1">
 										{#each visit.student.currentMedications as medication}
-											<li class="text-sm text-amber-900 dark:text-amber-100">• {medication}</li>
+											<li class="text-sm text-amber-900 capitalize dark:text-amber-100">
+												• {medication}
+											</li>
 										{/each}
 									</ul>
 								</div>

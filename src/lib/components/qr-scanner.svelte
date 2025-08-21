@@ -42,6 +42,7 @@
 					returnDetailedScanResult: true,
 					highlightScanRegion: true,
 					highlightCodeOutline: true
+					// maxScansPerSecond: 1
 				}
 			);
 
@@ -89,7 +90,9 @@
 	<div class="relative w-full max-w-md rounded-lg bg-background p-6 shadow-lg">
 		<!-- Header -->
 		<div class="mb-4 flex items-center justify-between">
-			<h2 class="text-lg font-semibold">Scan QR Code</h2>
+			<div class="flex items-center gap-2">
+				<h2 class="text-lg font-semibold">Scan QR Code</h2>
+			</div>
 			<Button variant="ghost" size="sm" onclick={handleClose}>
 				<X class="h-4 w-4" />
 			</Button>

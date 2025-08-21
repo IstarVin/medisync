@@ -1,10 +1,28 @@
 import { db } from '$lib/server/db';
 import { systemSettings } from '$lib/server/db/schema';
 import { mainEvents } from '$lib/server/events';
-import { json } from '@sveltejs/kit';
+import { json, redirect } from '@sveltejs/kit';
 import { and, eq } from 'drizzle-orm';
 import z from 'zod';
 import type { RequestHandler } from './$types';
+
+export const GET: RequestHandler = async ({ url, locals }) => {
+	const studentId = url.searchParams.get('id');
+
+	if (!studentId) {
+		return json({ error: 'Student ID is required' }, { status: 400 });
+	}
+
+	// If user is authenticated, redirect directly to student page
+	if (locals.user) {
+		throw redirect(302, `/students/${studentId}`);
+	}
+
+	// For unauthenticated users, we could redirect to a public student info page
+	// or handle it differently based on your requirements
+	// For now, let's redirect to login with a return URL
+	throw redirect(302, `/login?returnTo=/students/${studentId}`);
+};
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const data = await request.json();

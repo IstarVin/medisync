@@ -1,5 +1,6 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
+	import TransitionOverlay from '$lib/components/transition-overlay.svelte';
 	import '../app.css';
 
 	let { children } = $props();
@@ -59,5 +60,7 @@
 		</style>
 	</noscript>
 </svelte:head>
+
+<TransitionOverlay />
 
 {@render children()}
