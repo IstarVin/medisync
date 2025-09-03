@@ -392,14 +392,14 @@
 			</div>
 
 			<!-- Preview section -->
-			{#if formData.message.trim()}
+			<!-- {#if formData.message.trim()}
 				<div class="space-y-2">
 					<Label>Message Preview</Label>
 					<div class="rounded-lg border bg-muted/30 p-3 text-sm">
 						<div class="break-words whitespace-pre-wrap">{formData.message}</div>
 					</div>
 				</div>
-			{/if}
+			{/if} -->
 
 			<!-- Form Actions -->
 			<div class="flex justify-end gap-3 border-t pt-4">
