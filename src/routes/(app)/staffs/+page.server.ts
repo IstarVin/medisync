@@ -115,6 +115,10 @@ export const actions: Actions = {
 
 			// Generate a temporary password (in production, you might want to send this via email)
 			const temporaryPassword = crypto.randomUUID(); // You should generate a random password
+			console.log(
+				`Temp Password for ${validatedData.firstName} ${validatedData.lastName}: ${temporaryPassword}`
+			);
+
 			const passwordHash = await hash(temporaryPassword, {
 				memoryCost: 19456,
 				timeCost: 2,

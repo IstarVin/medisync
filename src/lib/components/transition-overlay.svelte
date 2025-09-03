@@ -5,11 +5,14 @@
 	let showTransition = $state(false);
 
 	beforeNavigate(async (e) => {
-		showTransition = true;
+		const sleep = new Promise<boolean>((resolve) => setTimeout(() => resolve(true), 300));
+		const res = await Promise.race([sleep, e.complete]);
+		if (res) {
+			showTransition = true;
+		}
 		await e.complete;
 		showTransition = false;
 	});
-	$inspect(showTransition);
 </script>
 
 {#if showTransition}
