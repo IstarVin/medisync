@@ -175,62 +175,57 @@ export const actions: Actions = {
 				}
 			}
 
-			// Start a transaction to insert student and emergency contacts
-			const result = await db.transaction(async (tx) => {
-				// Insert student
-				const [newStudent] = await tx
-					.insert(students)
-					.values({
-						studentId: studentData.studentId,
-						firstName: studentData.firstName,
-						lastName: studentData.lastName,
-						middleName: studentData.middleName || null,
-						email: studentData.email || null,
-						dateOfBirth: new Date(studentData.dateOfBirth),
-						gender: studentData.gender,
-						grade: studentData.grade,
-						section: studentData.section || null,
-						address: studentData.address || null,
-						chronicHealthConditions: studentData.chronicHealthConditions
-							? studentData.chronicHealthConditions
-									.split(',')
-									.map((s) => s.trim())
-									.filter(Boolean)
-							: [],
-						currentMedications: studentData.currentMedications
-							? studentData.currentMedications
-									.split(',')
-									.map((s) => s.trim())
-									.filter(Boolean)
-							: [],
-						healthHistory: studentData.healthHistory || null,
-						doctorId: studentData.doctorId || null,
-						enrollmentDate: new Date(),
-						isActive: true
-					})
-					.returning();
+			// Insert student
+			const [newStudent] = await db
+				.insert(students)
+				.values({
+					studentId: studentData.studentId,
+					firstName: studentData.firstName,
+					lastName: studentData.lastName,
+					middleName: studentData.middleName || null,
+					email: studentData.email || null,
+					dateOfBirth: new Date(studentData.dateOfBirth),
+					gender: studentData.gender,
+					grade: studentData.grade,
+					section: studentData.section || null,
+					address: studentData.address || null,
+					chronicHealthConditions: studentData.chronicHealthConditions
+						? studentData.chronicHealthConditions
+								.split(',')
+								.map((s) => s.trim())
+								.filter(Boolean)
+						: [],
+					currentMedications: studentData.currentMedications
+						? studentData.currentMedications
+								.split(',')
+								.map((s) => s.trim())
+								.filter(Boolean)
+						: [],
+					healthHistory: studentData.healthHistory || null,
+					doctorId: studentData.doctorId || null,
+					enrollmentDate: new Date(),
+					isActive: true
+				})
+				.returning();
 
-				// Insert emergency contacts
-				for (const contact of emergencyContactsData) {
-					await tx.insert(emergencyContacts).values({
-						studentId: newStudent.id,
-						name: contact.name,
-						relationship: contact.relationship,
-						phoneNumber: contact.phoneNumber,
-						alternatePhone: contact.alternatePhone || null,
-						email: contact.email || null,
-						address: contact.address || null,
-						isPrimary: contact.isPrimary,
-						priority: contact.priority
-					});
-				}
-
-				return newStudent;
-			});
+			// Insert emergency contacts
+			for (const contact of emergencyContactsData) {
+				await db.insert(emergencyContacts).values({
+					studentId: newStudent.id,
+					name: contact.name,
+					relationship: contact.relationship,
+					phoneNumber: contact.phoneNumber,
+					alternatePhone: contact.alternatePhone || null,
+					email: contact.email || null,
+					address: contact.address || null,
+					isPrimary: contact.isPrimary,
+					priority: contact.priority
+				});
+			}
 
 			return {
 				success: true,
-				student: result
+				student: newStudent
 			};
 		} catch (error) {
 			console.error('Error adding student:', error);
@@ -333,68 +328,63 @@ export const actions: Actions = {
 				}
 			}
 
-			// Start a transaction to update student and emergency contacts
-			const result = await db.transaction(async (tx) => {
-				// Update student
-				const [updatedStudent] = await tx
-					.update(students)
-					.set({
-						firstName: studentData.firstName,
-						lastName: studentData.lastName,
-						middleName: studentData.middleName || null,
-						email: studentData.email || null,
-						dateOfBirth: new Date(studentData.dateOfBirth),
-						gender: studentData.gender,
-						grade: studentData.grade,
-						section: studentData.section || null,
-						address: studentData.address || null,
-						chronicHealthConditions: studentData.chronicHealthConditions
-							? studentData.chronicHealthConditions
-									.split(',')
-									.map((s) => s.trim())
-									.filter(Boolean)
-							: [],
-						currentMedications: studentData.currentMedications
-							? studentData.currentMedications
-									.split(',')
-									.map((s) => s.trim())
-									.filter(Boolean)
-							: [],
-						healthHistory: studentData.healthHistory || null,
-						doctorId: studentData.doctorId || null,
-						updatedAt: new Date()
-					})
-					.where(eq(students.id, studentId))
-					.returning();
+			// Update student
+			const [updatedStudent] = await db
+				.update(students)
+				.set({
+					firstName: studentData.firstName,
+					lastName: studentData.lastName,
+					middleName: studentData.middleName || null,
+					email: studentData.email || null,
+					dateOfBirth: new Date(studentData.dateOfBirth),
+					gender: studentData.gender,
+					grade: studentData.grade,
+					section: studentData.section || null,
+					address: studentData.address || null,
+					chronicHealthConditions: studentData.chronicHealthConditions
+						? studentData.chronicHealthConditions
+								.split(',')
+								.map((s) => s.trim())
+								.filter(Boolean)
+						: [],
+					currentMedications: studentData.currentMedications
+						? studentData.currentMedications
+								.split(',')
+								.map((s) => s.trim())
+								.filter(Boolean)
+						: [],
+					healthHistory: studentData.healthHistory || null,
+					doctorId: studentData.doctorId || null,
+					updatedAt: new Date()
+				})
+				.where(eq(students.id, studentId))
+				.returning();
 
-				if (!updatedStudent) {
-					throw new Error('Student not found');
-				}
+			if (!updatedStudent) {
+				throw new Error('Student not found');
+			}
 
-				// Delete existing emergency contacts
-				await tx.delete(emergencyContacts).where(eq(emergencyContacts.studentId, studentId));
+			// Delete existing emergency contacts
+			await db.delete(emergencyContacts).where(eq(emergencyContacts.studentId, studentId));
 
-				// Insert new emergency contacts
-				for (const contact of emergencyContactsData) {
-					await tx.insert(emergencyContacts).values({
-						studentId: studentId,
-						name: contact.name,
-						relationship: contact.relationship,
-						phoneNumber: contact.phoneNumber,
-						alternatePhone: contact.alternatePhone || null,
-						email: contact.email || null,
-						address: contact.address || null,
-						isPrimary: contact.isPrimary,
-						priority: contact.priority
-					});
-				}
-
-				return updatedStudent;
-			});
+			// Insert new emergency contacts
+			for (const contact of emergencyContactsData) {
+				await db.insert(emergencyContacts).values({
+					studentId: studentId,
+					name: contact.name,
+					relationship: contact.relationship,
+					phoneNumber: contact.phoneNumber,
+					alternatePhone: contact.alternatePhone || null,
+					email: contact.email || null,
+					address: contact.address || null,
+					isPrimary: contact.isPrimary,
+					priority: contact.priority
+				});
+			}
 
 			return {
 				success: true,
-				student: result
+				student: updatedStudent
 			};
 		} catch (error) {
 			console.error('Error updating student:', error);

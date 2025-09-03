@@ -1,6 +1,6 @@
 import { db } from '$lib/server/db';
 import { clinicVisits, students } from '$lib/server/db/schema';
-import { and, count, desc, ne, sql } from 'drizzle-orm';
+import { and, count, desc, eq, ne, sql } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
@@ -20,7 +20,7 @@ export const load: PageServerLoad = async () => {
 		.where(
 			and(
 				baseCondition,
-				sql`date_trunc('month', ${clinicVisits.checkInTime}) = date_trunc('month', current_timestamp)`
+				sql`strftime('%Y-%m', datetime(${clinicVisits.checkInTime} / 1000, 'unixepoch')) = strftime('%Y-%m', 'now')`
 			)
 		);
 
@@ -31,7 +31,7 @@ export const load: PageServerLoad = async () => {
 		.where(
 			and(
 				baseCondition,
-				sql`date_trunc('day', ${clinicVisits.checkInTime}) = date_trunc('day', current_timestamp)`
+				sql`strftime('%Y-%m-%d', datetime(${clinicVisits.checkInTime} / 1000, 'unixepoch')) = strftime('%Y-%m-%d', 'now')`
 			)
 		);
 
@@ -57,7 +57,7 @@ export const load: PageServerLoad = async () => {
 			}
 		})
 		.from(clinicVisits)
-		.innerJoin(students, sql`${clinicVisits.studentId} = ${students.id}`)
+		.innerJoin(students, eq(clinicVisits.studentId, students.id))
 		.where(baseCondition)
 		.orderBy(desc(clinicVisits.checkInTime))
 		.limit(10);

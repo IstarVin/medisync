@@ -1,10 +1,8 @@
-import { env } from '$env/dynamic/private';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
 import * as schema from './schema';
 
-if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+export const sqlite = new Database(process.env.DATABASE_URL || './data/database.sqlite');
+sqlite.exec('PRAGMA foreign_keys = ON');
 
-const client = postgres(env.DATABASE_URL);
-
-export const db = drizzle(client, { schema });
+export const db = drizzle(sqlite, { schema });
