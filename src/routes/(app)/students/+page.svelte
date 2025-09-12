@@ -3,6 +3,7 @@
 	import StudentFormModal from '$lib/components/student-form-modal.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -17,7 +18,10 @@
 		GraduationCap,
 		Heart,
 		Plus,
+		RotateCcw,
 		Search,
+		Trash,
+		Trash2,
 		X
 	} from '@lucide/svelte';
 	import type { PageData } from './$types';
@@ -73,11 +77,20 @@
 	let modalMode = $state<'add' | 'edit'>('add');
 	let selectedStudent = $state<Student | null>(null);
 	let selectedEmergencyContacts = $state<EmergencyContact[]>([]);
+	let deleteConfirmOpen = $state(false);
+	let studentToDelete = $state<Student | null>(null);
+	let isDeleting = $state(false);
+	let reactivateConfirmOpen = $state(false);
+	let studentToReactivate = $state<Student | null>(null);
+	let isReactivating = $state(false);
+	let permanentDeleteConfirmOpen = $state(false);
+	let studentToPermanentDelete = $state<Student | null>(null);
+	let isPermanentDeleting = $state(false);
 	let filters = $state<FilterOptions>({
 		grade: '',
 		medicalCondition: '',
 		gender: '',
-		status: ''
+		status: 'active'
 	});
 
 	// Client-side pagination state
@@ -255,6 +268,135 @@
 		}
 	}
 
+	function handleDeleteStudent(studentId: string) {
+		const student = allStudents.find((s) => s.id === studentId);
+		if (student) {
+			studentToDelete = student;
+			deleteConfirmOpen = true;
+		}
+	}
+
+	async function confirmDeleteStudent() {
+		if (!studentToDelete) return;
+
+		isDeleting = true;
+		try {
+			const formData = new FormData();
+			formData.append('studentId', studentToDelete.id);
+
+			const response = await fetch('?/deleteStudent', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (response.ok) {
+				// Refresh the page to update the student list
+				location.reload();
+			} else {
+				console.error('Delete failed:', response.statusText);
+				// You might want to show an error toast here
+			}
+		} catch (error) {
+			console.error('Error deleting student:', error);
+			// You might want to show an error toast here
+		} finally {
+			isDeleting = false;
+			deleteConfirmOpen = false;
+			studentToDelete = null;
+		}
+	}
+
+	function cancelDeleteStudent() {
+		deleteConfirmOpen = false;
+		studentToDelete = null;
+	}
+
+	function handleReactivateStudent(studentId: string) {
+		const student = allStudents.find((s) => s.id === studentId);
+		if (student) {
+			studentToReactivate = student;
+			reactivateConfirmOpen = true;
+		}
+	}
+
+	async function confirmReactivateStudent() {
+		if (!studentToReactivate) return;
+
+		isReactivating = true;
+		try {
+			const formData = new FormData();
+			formData.append('studentId', studentToReactivate.id);
+
+			const response = await fetch('?/reactivateStudent', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (response.ok) {
+				// Refresh the page to update the student list
+				location.reload();
+			} else {
+				console.error('Reactivate failed:', response.statusText);
+				// You might want to show an error toast here
+			}
+		} catch (error) {
+			console.error('Error reactivating student:', error);
+			// You might want to show an error toast here
+		} finally {
+			isReactivating = false;
+			reactivateConfirmOpen = false;
+			studentToReactivate = null;
+		}
+	}
+
+	function cancelReactivateStudent() {
+		reactivateConfirmOpen = false;
+		studentToReactivate = null;
+	}
+
+	function handlePermanentDeleteStudent(studentId: string) {
+		const student = allStudents.find((s) => s.id === studentId);
+		if (student) {
+			studentToPermanentDelete = student;
+			permanentDeleteConfirmOpen = true;
+		}
+	}
+
+	async function confirmPermanentDeleteStudent() {
+		if (!studentToPermanentDelete) return;
+
+		isPermanentDeleting = true;
+		try {
+			const formData = new FormData();
+			formData.append('studentId', studentToPermanentDelete.id);
+
+			const response = await fetch('?/permanentDeleteStudent', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (response.ok) {
+				// Refresh the page to update the student list
+				location.reload();
+			} else {
+				console.error('Permanent delete failed:', response.statusText);
+				// You might want to show an error toast here
+			}
+		} catch (error) {
+			console.error('Error permanently deleting student:', error);
+			// You might want to show an error toast here
+		} finally {
+			isPermanentDeleting = false;
+			permanentDeleteConfirmOpen = false;
+			studentToPermanentDelete = null;
+		}
+	}
+
+	function cancelPermanentDeleteStudent() {
+		permanentDeleteConfirmOpen = false;
+		studentToPermanentDelete = null;
+	}
+
 	// Pagination handlers
 	function goToPage(page: number) {
 		if (page >= 1 && page <= paginationInfo.totalPages) {
@@ -430,14 +572,15 @@
 						<Table.Head class="hidden md:table-cell">ID</Table.Head>
 						<Table.Head class="hidden lg:table-cell">Grade</Table.Head>
 						<Table.Head class="hidden lg:table-cell">Age</Table.Head>
+						<Table.Head class="hidden xl:table-cell">Status</Table.Head>
 						<Table.Head>Medical Conditions</Table.Head>
-						<Table.Head class="w-[120px]">Actions</Table.Head>
+						<Table.Head class="w-[160px]">Actions</Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#if paginatedStudents.length === 0}
 						<Table.Row>
-							<Table.Cell colspan={6} class="py-8 text-center">
+							<Table.Cell colspan={7} class="py-8 text-center">
 								{#if hasActiveFilters}
 									<div class="flex flex-col items-center gap-2">
 										<Search class="size-8 text-muted-foreground" />
@@ -503,6 +646,11 @@
 								<Table.Cell class="hidden lg:table-cell">
 									{calculateAge(student.dateOfBirth)} years
 								</Table.Cell>
+								<Table.Cell class="hidden xl:table-cell">
+									<Badge variant={student.isActive ? 'default' : 'secondary'}>
+										{student.isActive ? 'Active' : 'Inactive'}
+									</Badge>
+								</Table.Cell>
 								<Table.Cell>
 									<div class="flex items-center gap-2">
 										<Tooltip.Provider delayDuration={300}>
@@ -546,6 +694,45 @@
 											<Edit class="size-4" />
 											<span class="sr-only">Edit student</span>
 										</Button>
+										{#if student.isActive}
+											<Button
+												variant="ghost"
+												size="icon"
+												onclick={(e) => {
+													e.stopPropagation();
+													handleDeleteStudent(student.id);
+												}}
+												class="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
+											>
+												<Trash2 class="size-4" />
+												<span class="sr-only">Delete student</span>
+											</Button>
+										{:else}
+											<Button
+												variant="ghost"
+												size="icon"
+												onclick={(e) => {
+													e.stopPropagation();
+													handleReactivateStudent(student.id);
+												}}
+												class="size-8 text-green-600 hover:bg-green-100 hover:text-green-700 dark:text-green-400 dark:hover:bg-green-900/20 dark:hover:text-green-300"
+											>
+												<RotateCcw class="size-4" />
+												<span class="sr-only">Reactivate student</span>
+											</Button>
+											<Button
+												variant="ghost"
+												size="icon"
+												onclick={(e) => {
+													e.stopPropagation();
+													handlePermanentDeleteStudent(student.id);
+												}}
+												class="size-8 text-red-700 hover:bg-red-100 hover:text-red-800 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
+											>
+												<Trash class="size-4" />
+												<span class="sr-only">Permanently delete student</span>
+											</Button>
+										{/if}
 									</div>
 								</Table.Cell>
 							</Table.Row>
@@ -624,4 +811,173 @@
 		emergencyContacts={selectedEmergencyContacts}
 		availableDoctors={data.availableDoctors}
 	/>
+{/if}
+
+<!-- Delete Confirmation Dialog -->
+{#if deleteConfirmOpen && studentToDelete}
+	<Dialog.Root bind:open={deleteConfirmOpen}>
+		<Dialog.Content class="sm:max-w-md">
+			<Dialog.Header>
+				<Dialog.Title class="flex items-center gap-2 text-destructive">
+					<Trash2 class="size-5" />
+					Delete Student
+				</Dialog.Title>
+				<Dialog.Description>
+					Are you sure you want to delete <span class="font-semibold"
+						>{studentToDelete.firstName} {studentToDelete.lastName}</span
+					>?
+				</Dialog.Description>
+			</Dialog.Header>
+
+			<div class="rounded-lg bg-muted/50 p-4">
+				<div class="text-sm text-muted-foreground">
+					<p class="mb-2">
+						<strong>Important:</strong> This action cannot be undone.
+					</p>
+					<ul class="list-disc space-y-1 pl-4">
+						<li>
+							If the student has clinic visit records, they will be deactivated instead of deleted
+						</li>
+						<li>If the student has no visit history, they will be permanently removed</li>
+						<li>All emergency contacts will be removed</li>
+					</ul>
+				</div>
+			</div>
+
+			<Dialog.Footer class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+				<Button variant="outline" onclick={cancelDeleteStudent} disabled={isDeleting}>
+					Cancel
+				</Button>
+				<Button variant="destructive" onclick={confirmDeleteStudent} disabled={isDeleting}>
+					{#if isDeleting}
+						<div class="flex items-center gap-2">
+							<div
+								class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+							></div>
+							Deleting...
+						</div>
+					{:else}
+						Delete Student
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}
+
+<!-- Reactivate Confirmation Dialog -->
+{#if reactivateConfirmOpen && studentToReactivate}
+	<Dialog.Root bind:open={reactivateConfirmOpen}>
+		<Dialog.Content class="sm:max-w-md">
+			<Dialog.Header>
+				<Dialog.Title class="flex items-center gap-2 text-green-600 dark:text-green-400">
+					<RotateCcw class="size-5" />
+					Reactivate Student
+				</Dialog.Title>
+				<Dialog.Description>
+					Are you sure you want to reactivate <span class="font-semibold"
+						>{studentToReactivate.firstName} {studentToReactivate.lastName}</span
+					>?
+				</Dialog.Description>
+			</Dialog.Header>
+
+			<div class="rounded-lg bg-muted/50 p-4">
+				<div class="text-sm text-muted-foreground">
+					<p class="mb-2">
+						<strong>What happens when you reactivate:</strong>
+					</p>
+					<ul class="list-disc space-y-1 pl-4">
+						<li>The student will become active and visible in the system</li>
+						<li>They will be able to check in to the clinic again</li>
+						<li>All their previous medical history and emergency contacts will remain intact</li>
+						<li>QR code scanning will work for this student</li>
+					</ul>
+				</div>
+			</div>
+
+			<Dialog.Footer class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+				<Button variant="outline" onclick={cancelReactivateStudent} disabled={isReactivating}>
+					Cancel
+				</Button>
+				<Button
+					variant="default"
+					onclick={confirmReactivateStudent}
+					disabled={isReactivating}
+					class="bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
+				>
+					{#if isReactivating}
+						<div class="flex items-center gap-2">
+							<div
+								class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+							></div>
+							Reactivating...
+						</div>
+					{:else}
+						Reactivate Student
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
+{/if}
+
+<!-- Permanent Delete Confirmation Dialog -->
+{#if permanentDeleteConfirmOpen && studentToPermanentDelete}
+	<Dialog.Root bind:open={permanentDeleteConfirmOpen}>
+		<Dialog.Content class="sm:max-w-md">
+			<Dialog.Header>
+				<Dialog.Title class="flex items-center gap-2 text-red-700 dark:text-red-400">
+					<Trash class="size-5" />
+					Permanently Delete Student
+				</Dialog.Title>
+				<Dialog.Description>
+					Are you sure you want to permanently delete <span class="font-semibold"
+						>{studentToPermanentDelete.firstName} {studentToPermanentDelete.lastName}</span
+					>?
+				</Dialog.Description>
+			</Dialog.Header>
+
+			<div
+				class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20"
+			>
+				<div class="text-sm text-red-800 dark:text-red-200">
+					<p class="mb-2 font-semibold">⚠️ WARNING: This action is irreversible!</p>
+					<ul class="list-disc space-y-1 pl-4">
+						<li>The student will be permanently removed from the database</li>
+						<li>All emergency contacts will be deleted</li>
+						<li>All historical clinic visit records will be lost</li>
+						<li>QR codes associated with this student will no longer work</li>
+						<li>This data cannot be recovered</li>
+					</ul>
+				</div>
+			</div>
+
+			<Dialog.Footer class="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+				<Button
+					variant="outline"
+					onclick={cancelPermanentDeleteStudent}
+					disabled={isPermanentDeleting}
+				>
+					Cancel
+				</Button>
+				<Button
+					variant="destructive"
+					onclick={confirmPermanentDeleteStudent}
+					disabled={isPermanentDeleting}
+					class="bg-red-700 hover:bg-red-800 dark:bg-red-700 dark:hover:bg-red-800"
+				>
+					{#if isPermanentDeleting}
+						<div class="flex items-center gap-2">
+							<div
+								class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+							></div>
+							Deleting...
+						</div>
+					{:else}
+						Permanently Delete
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
 {/if}

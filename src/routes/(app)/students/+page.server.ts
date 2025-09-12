@@ -1,7 +1,7 @@
 import { db } from '$lib/server/db/index.js';
-import { emergencyContacts, students, users } from '$lib/server/db/schema.js';
+import { clinicVisits, emergencyContacts, students, users } from '$lib/server/db/schema.js';
 import { fail } from '@sveltejs/kit';
-import { asc, eq } from 'drizzle-orm';
+import { asc, count, eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
@@ -390,6 +390,171 @@ export const actions: Actions = {
 			console.error('Error updating student:', error);
 			return fail(500, {
 				error: 'Failed to update student. Please try again.'
+			});
+		}
+	},
+
+	deleteStudent: async ({ request }) => {
+		try {
+			const formData = await request.formData();
+			const studentId = formData.get('studentId') as string;
+
+			if (!studentId) {
+				return fail(400, {
+					error: 'Student ID is required'
+				});
+			}
+
+			// Check if student exists
+			const [existingStudent] = await db
+				.select({ id: students.id, firstName: students.firstName, lastName: students.lastName })
+				.from(students)
+				.where(eq(students.id, studentId));
+
+			if (!existingStudent) {
+				return fail(404, {
+					error: 'Student not found'
+				});
+			}
+
+			// Soft delete - mark as inactive
+			await db
+				.update(students)
+				.set({
+					isActive: false,
+					updatedAt: new Date()
+				})
+				.where(eq(students.id, studentId));
+
+			return {
+				success: true,
+				message: `Student ${existingStudent.firstName} ${existingStudent.lastName} has been deactivated due to existing clinic visit records.`,
+				type: 'deactivated'
+			};
+		} catch (error) {
+			console.error('Error deleting student:', error);
+			return fail(500, {
+				error: 'Failed to delete student. Please try again.'
+			});
+		}
+	},
+
+	reactivateStudent: async ({ request }) => {
+		try {
+			const formData = await request.formData();
+			const studentId = formData.get('studentId') as string;
+
+			if (!studentId) {
+				return fail(400, {
+					error: 'Student ID is required'
+				});
+			}
+
+			// Check if student exists and is inactive
+			const [existingStudent] = await db
+				.select({
+					id: students.id,
+					firstName: students.firstName,
+					lastName: students.lastName,
+					isActive: students.isActive
+				})
+				.from(students)
+				.where(eq(students.id, studentId));
+
+			if (!existingStudent) {
+				return fail(404, {
+					error: 'Student not found'
+				});
+			}
+
+			if (existingStudent.isActive) {
+				return fail(400, {
+					error: 'Student is already active'
+				});
+			}
+
+			// Reactivate the student
+			await db
+				.update(students)
+				.set({
+					isActive: true,
+					updatedAt: new Date()
+				})
+				.where(eq(students.id, studentId));
+
+			return {
+				success: true,
+				message: `Student ${existingStudent.firstName} ${existingStudent.lastName} has been reactivated.`,
+				type: 'reactivated'
+			};
+		} catch (error) {
+			console.error('Error reactivating student:', error);
+			return fail(500, {
+				error: 'Failed to reactivate student. Please try again.'
+			});
+		}
+	},
+
+	permanentDeleteStudent: async ({ request }) => {
+		try {
+			const formData = await request.formData();
+			const studentId = formData.get('studentId') as string;
+
+			if (!studentId) {
+				return fail(400, {
+					error: 'Student ID is required'
+				});
+			}
+
+			// Check if student exists and is inactive
+			const [existingStudent] = await db
+				.select({
+					id: students.id,
+					firstName: students.firstName,
+					lastName: students.lastName,
+					isActive: students.isActive
+				})
+				.from(students)
+				.where(eq(students.id, studentId));
+
+			if (!existingStudent) {
+				return fail(404, {
+					error: 'Student not found'
+				});
+			}
+
+			if (existingStudent.isActive) {
+				return fail(400, {
+					error: 'Cannot permanently delete an active student. Please deactivate first.'
+				});
+			}
+
+			// Check if student has clinic visits (they will be deleted due to cascade)
+			const visitCountResult = await db
+				.select({ count: count() })
+				.from(clinicVisits)
+				.where(eq(clinicVisits.studentId, studentId));
+
+			const visitCount = visitCountResult[0]?.count || 0;
+
+			// Hard delete - permanently remove the student and all related data
+			// Emergency contacts and clinic visits will be automatically deleted due to cascade
+			await db.delete(students).where(eq(students.id, studentId));
+
+			const visitMessage =
+				visitCount > 0
+					? ` and ${visitCount} clinic visit record${visitCount === 1 ? '' : 's'}`
+					: '';
+
+			return {
+				success: true,
+				message: `Student ${existingStudent.firstName} ${existingStudent.lastName} has been permanently deleted${visitMessage}.`,
+				type: 'permanently_deleted'
+			};
+		} catch (error) {
+			console.error('Error permanently deleting student:', error);
+			return fail(500, {
+				error: 'Failed to permanently delete student. Please try again.'
 			});
 		}
 	}
