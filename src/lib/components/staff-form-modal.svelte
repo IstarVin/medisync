@@ -9,6 +9,7 @@
 	import { toTitleCase } from '$lib/utils.js';
 	import { Loader2 } from '@lucide/svelte';
 	import { onMount } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
 	// Types
 	type Staff = {
@@ -132,10 +133,20 @@
 
 					if (result.type === 'failure') {
 						errors = (result.data?.errors as any) || {};
+						toast.error(`Failed to ${mode} staff member`, {
+							description: 'Please check the form for errors and try again.'
+						});
 					} else if (result.type === 'success') {
+						const action = mode === 'edit' ? 'updated' : 'added';
+						toast.success(`Staff member ${action} successfully!`, {
+							description: `${formData.get('firstName')} ${formData.get('lastName')} has been ${action}.`
+						});
 						await invalidateAll();
 						open = false;
-						// Optionally show success message
+					} else if (result.type === 'error') {
+						toast.error(`Failed to ${mode} staff member`, {
+							description: 'An unexpected error occurred. Please try again.'
+						});
 					}
 				};
 			}}

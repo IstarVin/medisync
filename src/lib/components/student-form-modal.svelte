@@ -21,6 +21,7 @@
 	} from '@internationalized/date';
 	import { CalendarIcon, Check, ChevronsUpDown, Loader2, Plus, Trash2 } from '@lucide/svelte';
 	import { onMount, tick } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
 	// Types
 	type EmergencyContact = {
@@ -289,10 +290,20 @@
 
 						if (result.type === 'failure') {
 							errors = (result.data?.errors as any) || {};
+							toast.error(`Failed to ${mode} student`, {
+								description: 'Please check the form for errors and try again.'
+							});
 						} else if (result.type === 'success') {
+							const action = mode === 'edit' ? 'updated' : 'added';
+							toast.success(`Student ${action} successfully!`, {
+								description: `${formData.get('firstName')} ${formData.get('lastName')} has been ${action}.`
+							});
 							await invalidateAll();
 							open = false;
-							// Optionally show success message
+						} else if (result.type === 'error') {
+							toast.error(`Failed to ${mode} student`, {
+								description: 'An unexpected error occurred. Please try again.'
+							});
 						}
 					};
 				}}

@@ -1,9 +1,11 @@
 <script lang="ts">
+	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
 	import StudentFormModal from '$lib/components/student-form-modal.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import * as Select from '$lib/components/ui/select/index.js';
 	import * as Table from '$lib/components/ui/table/index.js';
@@ -13,10 +15,10 @@
 		ArrowLeft,
 		ArrowRight,
 		Edit,
-		Eye,
 		Funnel,
 		GraduationCap,
 		Heart,
+		MoreHorizontal,
 		Plus,
 		RotateCcw,
 		Search,
@@ -24,6 +26,7 @@
 		Trash2,
 		X
 	} from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
 	import type { PageData } from './$types';
 
 	// Props from the load function
@@ -276,36 +279,6 @@
 		}
 	}
 
-	async function confirmDeleteStudent() {
-		if (!studentToDelete) return;
-
-		isDeleting = true;
-		try {
-			const formData = new FormData();
-			formData.append('studentId', studentToDelete.id);
-
-			const response = await fetch('?/deleteStudent', {
-				method: 'POST',
-				body: formData
-			});
-
-			if (response.ok) {
-				// Refresh the page to update the student list
-				location.reload();
-			} else {
-				console.error('Delete failed:', response.statusText);
-				// You might want to show an error toast here
-			}
-		} catch (error) {
-			console.error('Error deleting student:', error);
-			// You might want to show an error toast here
-		} finally {
-			isDeleting = false;
-			deleteConfirmOpen = false;
-			studentToDelete = null;
-		}
-	}
-
 	function cancelDeleteStudent() {
 		deleteConfirmOpen = false;
 		studentToDelete = null;
@@ -319,36 +292,6 @@
 		}
 	}
 
-	async function confirmReactivateStudent() {
-		if (!studentToReactivate) return;
-
-		isReactivating = true;
-		try {
-			const formData = new FormData();
-			formData.append('studentId', studentToReactivate.id);
-
-			const response = await fetch('?/reactivateStudent', {
-				method: 'POST',
-				body: formData
-			});
-
-			if (response.ok) {
-				// Refresh the page to update the student list
-				location.reload();
-			} else {
-				console.error('Reactivate failed:', response.statusText);
-				// You might want to show an error toast here
-			}
-		} catch (error) {
-			console.error('Error reactivating student:', error);
-			// You might want to show an error toast here
-		} finally {
-			isReactivating = false;
-			reactivateConfirmOpen = false;
-			studentToReactivate = null;
-		}
-	}
-
 	function cancelReactivateStudent() {
 		reactivateConfirmOpen = false;
 		studentToReactivate = null;
@@ -359,36 +302,6 @@
 		if (student) {
 			studentToPermanentDelete = student;
 			permanentDeleteConfirmOpen = true;
-		}
-	}
-
-	async function confirmPermanentDeleteStudent() {
-		if (!studentToPermanentDelete) return;
-
-		isPermanentDeleting = true;
-		try {
-			const formData = new FormData();
-			formData.append('studentId', studentToPermanentDelete.id);
-
-			const response = await fetch('?/permanentDeleteStudent', {
-				method: 'POST',
-				body: formData
-			});
-
-			if (response.ok) {
-				// Refresh the page to update the student list
-				location.reload();
-			} else {
-				console.error('Permanent delete failed:', response.statusText);
-				// You might want to show an error toast here
-			}
-		} catch (error) {
-			console.error('Error permanently deleting student:', error);
-			// You might want to show an error toast here
-		} finally {
-			isPermanentDeleting = false;
-			permanentDeleteConfirmOpen = false;
-			studentToPermanentDelete = null;
 		}
 	}
 
@@ -574,7 +487,7 @@
 						<Table.Head class="hidden lg:table-cell">Age</Table.Head>
 						<Table.Head class="hidden xl:table-cell">Status</Table.Head>
 						<Table.Head>Medical Conditions</Table.Head>
-						<Table.Head class="w-[160px]">Actions</Table.Head>
+						<Table.Head class="w-[50px]"></Table.Head>
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
@@ -672,68 +585,69 @@
 									</div>
 								</Table.Cell>
 								<Table.Cell>
-									<div class="flex items-center gap-1">
-										<Button
-											variant="ghost"
-											size="icon"
-											class="size-8"
-											href="/students/{student.studentId}"
-										>
-											<Eye class="size-4" />
-											<span class="sr-only">View student</span>
-										</Button>
-										<Button
-											variant="ghost"
-											size="icon"
-											onclick={(e) => {
-												e.stopPropagation();
-												handleEditStudent(student.id);
-											}}
-											class="size-8"
-										>
-											<Edit class="size-4" />
-											<span class="sr-only">Edit student</span>
-										</Button>
-										{#if student.isActive}
-											<Button
-												variant="ghost"
-												size="icon"
+									<DropdownMenu.Root>
+										<DropdownMenu.Trigger>
+											<Button variant="ghost" size="sm" class="size-8 p-0">
+												<MoreHorizontal class="size-4" />
+												<span class="sr-only">Actions</span>
+											</Button>
+										</DropdownMenu.Trigger>
+										<DropdownMenu.Content align="end">
+											<!-- <DropdownMenu.Item
+												class="cursor-pointer"
 												onclick={(e) => {
 													e.stopPropagation();
-													handleDeleteStudent(student.id);
+													goto('/students/' + student.studentId);
 												}}
-												class="size-8 text-destructive hover:bg-destructive/10 hover:text-destructive"
 											>
-												<Trash2 class="size-4" />
-												<span class="sr-only">Delete student</span>
-											</Button>
-										{:else}
-											<Button
-												variant="ghost"
-												size="icon"
+												<Eye class="mr-2 size-4" />
+												View
+											</DropdownMenu.Item> -->
+											<DropdownMenu.Item
+												class="cursor-pointer"
 												onclick={(e) => {
 													e.stopPropagation();
-													handleReactivateStudent(student.id);
+													handleEditStudent(student.id);
 												}}
-												class="size-8 text-green-600 hover:bg-green-100 hover:text-green-700 dark:text-green-400 dark:hover:bg-green-900/20 dark:hover:text-green-300"
 											>
-												<RotateCcw class="size-4" />
-												<span class="sr-only">Reactivate student</span>
-											</Button>
-											<Button
-												variant="ghost"
-												size="icon"
-												onclick={(e) => {
-													e.stopPropagation();
-													handlePermanentDeleteStudent(student.id);
-												}}
-												class="size-8 text-red-700 hover:bg-red-100 hover:text-red-800 dark:text-red-400 dark:hover:bg-red-900/20 dark:hover:text-red-300"
-											>
-												<Trash class="size-4" />
-												<span class="sr-only">Permanently delete student</span>
-											</Button>
-										{/if}
-									</div>
+												<Edit class="mr-2 size-4" />
+												Edit
+											</DropdownMenu.Item>
+											{#if student.isActive}
+												<DropdownMenu.Item
+													onclick={(e) => {
+														e.stopPropagation();
+														handleDeleteStudent(student.id);
+													}}
+													class="cursor-pointer text-red-600"
+												>
+													<Trash2 class="mr-2 size-4" />
+													Deactivate
+												</DropdownMenu.Item>
+											{:else}
+												<DropdownMenu.Item
+													onclick={(e) => {
+														e.stopPropagation();
+														handleReactivateStudent(student.id);
+													}}
+													class="cursor-pointer text-green-600"
+												>
+													<RotateCcw class="mr-2 size-4" />
+													Reactivate
+												</DropdownMenu.Item>
+												<DropdownMenu.Item
+													onclick={(e) => {
+														e.stopPropagation();
+														handlePermanentDeleteStudent(student.id);
+													}}
+													class="cursor-pointer text-red-600"
+												>
+													<Trash class="mr-2 size-4" />
+													Delete Permanently
+												</DropdownMenu.Item>
+											{/if}
+										</DropdownMenu.Content>
+									</DropdownMenu.Root>
 								</Table.Cell>
 							</Table.Row>
 						{/each}
@@ -848,18 +762,47 @@
 				<Button variant="outline" onclick={cancelDeleteStudent} disabled={isDeleting}>
 					Cancel
 				</Button>
-				<Button variant="destructive" onclick={confirmDeleteStudent} disabled={isDeleting}>
-					{#if isDeleting}
-						<div class="flex items-center gap-2">
-							<div
-								class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-							></div>
-							Deleting...
-						</div>
-					{:else}
-						Delete Student
-					{/if}
-				</Button>
+				<form
+					method="POST"
+					action="?/deleteStudent"
+					class="contents"
+					use:enhance={() => {
+						isDeleting = true;
+						return async ({ result, update }) => {
+							if (result.type === 'success') {
+								toast.success('Student archived successfully', {
+									description: `${studentToDelete?.firstName} ${studentToDelete?.lastName} has been moved to archived students.`
+								});
+								deleteConfirmOpen = false;
+								studentToDelete = null;
+								await update();
+							} else if (result.type === 'failure') {
+								toast.error('Failed to archive student', {
+									description: 'There was an error archiving the student. Please try again.'
+								});
+							} else if (result.type === 'error') {
+								toast.error('Error archiving student', {
+									description: 'An unexpected error occurred. Please try again.'
+								});
+							}
+							isDeleting = false;
+						};
+					}}
+				>
+					<input type="hidden" name="studentId" value={studentToDelete.id} />
+					<Button type="submit" variant="destructive" disabled={isDeleting}>
+						{#if isDeleting}
+							<div class="flex items-center gap-2">
+								<div
+									class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+								></div>
+								Deleting...
+							</div>
+						{:else}
+							Delete Student
+						{/if}
+					</Button>
+				</form>
 			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Root>
@@ -899,23 +842,52 @@
 				<Button variant="outline" onclick={cancelReactivateStudent} disabled={isReactivating}>
 					Cancel
 				</Button>
-				<Button
-					variant="default"
-					onclick={confirmReactivateStudent}
-					disabled={isReactivating}
-					class="bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
+				<form
+					method="POST"
+					action="?/reactivateStudent"
+					class="contents"
+					use:enhance={() => {
+						isReactivating = true;
+						return async ({ result, update }) => {
+							if (result.type === 'success') {
+								toast.success('Student reactivated successfully', {
+									description: `${studentToReactivate?.firstName} ${studentToReactivate?.lastName} has been reactivated and is now visible in the active students list.`
+								});
+								reactivateConfirmOpen = false;
+								studentToReactivate = null;
+								await update();
+							} else if (result.type === 'failure') {
+								toast.error('Failed to reactivate student', {
+									description: 'There was an error reactivating the student. Please try again.'
+								});
+							} else if (result.type === 'error') {
+								toast.error('Error reactivating student', {
+									description: 'An unexpected error occurred. Please try again.'
+								});
+							}
+							isReactivating = false;
+						};
+					}}
 				>
-					{#if isReactivating}
-						<div class="flex items-center gap-2">
-							<div
-								class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-							></div>
-							Reactivating...
-						</div>
-					{:else}
-						Reactivate Student
-					{/if}
-				</Button>
+					<input type="hidden" name="studentId" value={studentToReactivate.id} />
+					<Button
+						type="submit"
+						variant="default"
+						disabled={isReactivating}
+						class="bg-green-600 hover:bg-green-700 dark:bg-green-600 dark:hover:bg-green-700"
+					>
+						{#if isReactivating}
+							<div class="flex items-center gap-2">
+								<div
+									class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+								></div>
+								Reactivating...
+							</div>
+						{:else}
+							Reactivate Student
+						{/if}
+					</Button>
+				</form>
 			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Root>
@@ -960,23 +932,53 @@
 				>
 					Cancel
 				</Button>
-				<Button
-					variant="destructive"
-					onclick={confirmPermanentDeleteStudent}
-					disabled={isPermanentDeleting}
-					class="bg-red-700 hover:bg-red-800 dark:bg-red-700 dark:hover:bg-red-800"
+				<form
+					method="POST"
+					action="?/permanentDeleteStudent"
+					class="contents"
+					use:enhance={() => {
+						isPermanentDeleting = true;
+						return async ({ result, update }) => {
+							if (result.type === 'success') {
+								toast.success('Student permanently deleted', {
+									description: `${studentToPermanentDelete?.firstName} ${studentToPermanentDelete?.lastName} has been permanently removed from the system.`
+								});
+								permanentDeleteConfirmOpen = false;
+								studentToPermanentDelete = null;
+								await update();
+							} else if (result.type === 'failure') {
+								toast.error('Failed to delete student permanently', {
+									description:
+										'There was an error permanently deleting the student. Please try again.'
+								});
+							} else if (result.type === 'error') {
+								toast.error('Error deleting student permanently', {
+									description: 'An unexpected error occurred. Please try again.'
+								});
+							}
+							isPermanentDeleting = false;
+						};
+					}}
 				>
-					{#if isPermanentDeleting}
-						<div class="flex items-center gap-2">
-							<div
-								class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
-							></div>
-							Deleting...
-						</div>
-					{:else}
-						Permanently Delete
-					{/if}
-				</Button>
+					<input type="hidden" name="studentId" value={studentToPermanentDelete.id} />
+					<Button
+						type="submit"
+						variant="destructive"
+						disabled={isPermanentDeleting}
+						class="bg-red-700 hover:bg-red-800 dark:bg-red-700 dark:hover:bg-red-800"
+					>
+						{#if isPermanentDeleting}
+							<div class="flex items-center gap-2">
+								<div
+									class="size-4 animate-spin rounded-full border-2 border-current border-t-transparent"
+								></div>
+								Deleting...
+							</div>
+						{:else}
+							Permanently Delete
+						{/if}
+					</Button>
+				</form>
 			</Dialog.Footer>
 		</Dialog.Content>
 	</Dialog.Root>

@@ -14,6 +14,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { AlertCircle, Eye, EyeOff, Loader2, ShieldCheck } from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
 
 	let email = $state('');
 	let password = $state('');
@@ -105,7 +106,20 @@
 						class="space-y-4"
 						use:enhance={() => {
 							submitting = true;
-							return async ({ update }) => {
+							return async ({ result, update }) => {
+								if (result.type === 'success') {
+									toast.success('Login successful!', {
+										description: 'Welcome back to MediSYNC.'
+									});
+								} else if (result.type === 'failure') {
+									toast.error('Login failed', {
+										description: 'Invalid email or password.'
+									});
+								} else if (result.type === 'error') {
+									toast.error('Login error', {
+										description: 'An unexpected error occurred. Please try again.'
+									});
+								}
 								await update();
 								submitting = false;
 							};

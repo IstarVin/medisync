@@ -10,6 +10,7 @@
 	import { toTitleCase } from '$lib/utils';
 	import { GraduationCap, Loader2, Mail, Send, Stethoscope, User } from '@lucide/svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { toast } from 'svelte-sonner';
 
 	// Types
 	interface Student {
@@ -179,10 +180,22 @@
 		return async ({ result, update }) => {
 			try {
 				if (result.type === 'success') {
+					toast.success('Email sent successfully!', {
+						description: 'Your message has been delivered to the recipient.'
+					});
 					// Close modal and refresh data
 					open = false;
 					resetForm();
 					await invalidateAll();
+				} else if (result.type === 'failure') {
+					const errorMessage = result.data?.error || 'Failed to send email. Please try again.';
+					toast.error('Failed to send email', {
+						description: errorMessage
+					});
+				} else if (result.type === 'error') {
+					toast.error('Email sending failed', {
+						description: 'An unexpected error occurred. Please try again.'
+					});
 				}
 			} finally {
 				submitting = false;

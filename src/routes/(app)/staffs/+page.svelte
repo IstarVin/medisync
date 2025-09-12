@@ -24,6 +24,7 @@
 		UserPlus,
 		Users
 	} from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
 
 	// Define the staff type based on the server load data
 	type StaffMember = {
@@ -112,10 +113,30 @@
 			});
 
 			if (response.ok) {
+				const staff = data.staff.find((s) => s.id === staffId);
+				const staffName = staff ? `${staff.firstName} ${staff.lastName}` : 'Staff member';
+
+				if (action === 'deleteStaff') {
+					toast.success('Staff member deactivated', {
+						description: `${staffName} has been deactivated successfully.`
+					});
+				} else if (action === 'activateStaff') {
+					toast.success('Staff member activated', {
+						description: `${staffName} has been activated successfully.`
+					});
+				}
+
 				await invalidateAll();
+			} else {
+				toast.error('Action failed', {
+					description: 'There was an error performing the action. Please try again.'
+				});
 			}
 		} catch (error) {
 			console.error('Error performing action:', error);
+			toast.error('Error occurred', {
+				description: 'An unexpected error occurred. Please try again.'
+			});
 		} finally {
 			submitting = false;
 		}

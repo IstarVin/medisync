@@ -6,6 +6,7 @@
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { CheckCircle, Loader2, Shield, UserPlus } from '@lucide/svelte';
+	import { toast } from 'svelte-sonner';
 
 	// Form state
 	let submitting = $state(false);
@@ -135,8 +136,18 @@
 
 							if (result.type === 'failure') {
 								errors = (result.data?.errors as any) || {};
+								toast.error('Setup failed', {
+									description: 'Please check the form for errors and try again.'
+								});
 							} else if (result.type === 'redirect') {
+								toast.success('Setup completed successfully!', {
+									description: 'Your admin account has been created. Redirecting to login...'
+								});
 								goto(result.location);
+							} else if (result.type === 'error') {
+								toast.error('Setup error', {
+									description: 'An unexpected error occurred. Please try again.'
+								});
 							}
 						};
 					}}

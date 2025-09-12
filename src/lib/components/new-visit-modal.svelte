@@ -14,6 +14,7 @@
 	import { Check, ChevronsUpDown, Loader2, Plus, Stethoscope } from '@lucide/svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { tick } from 'svelte';
+	import { toast } from 'svelte-sonner';
 
 	// Types
 	interface Student {
@@ -89,10 +90,22 @@
 		return async ({ result, update }) => {
 			submitting = false;
 			if (result.type === 'success') {
+				toast.success('Visit created successfully!', {
+					description: `Clinic visit for ${student.firstName} ${student.lastName} has been recorded.`
+				});
 				// Close modal and refresh data
 				open = false;
 				resetForm();
 				await invalidateAll();
+			} else if (result.type === 'failure') {
+				const errorMessage = result.data?.error || 'Failed to create visit. Please try again.';
+				toast.error('Failed to create visit', {
+					description: errorMessage
+				});
+			} else if (result.type === 'error') {
+				toast.error('Visit creation failed', {
+					description: 'An unexpected error occurred. Please try again.'
+				});
 			}
 			await update();
 		};
