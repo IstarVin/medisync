@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ params }) => {
 				healthHistory: students.healthHistory,
 				enrollmentDate: students.enrollmentDate,
 				isActive: students.isActive,
-				profilePicture: students.profilePicture,
+				profileUrl: students.profileUrl,
 				createdAt: students.createdAt,
 				updatedAt: students.updatedAt,
 				// Doctor information

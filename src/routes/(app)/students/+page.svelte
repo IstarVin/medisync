@@ -534,10 +534,33 @@
 							>
 								<Table.Cell>
 									<div class="flex items-center gap-3">
-										<div
-											class="flex size-10 items-center justify-center rounded-full bg-primary/10 font-medium text-primary"
-										>
-											{student.firstName[0]}{student.lastName[0]}
+										<div class="relative size-10">
+											{#if student.profileUrl}
+												<img
+													src={student.profileUrl}
+													alt="{student.firstName} {student.lastName}"
+													class="size-10 rounded-full object-cover"
+													onerror={(e) => {
+														const target = e.target as HTMLImageElement;
+														const fallback = target?.nextElementSibling as HTMLElement;
+														if (target && fallback) {
+															target.style.display = 'none';
+															fallback.style.display = 'flex';
+														}
+													}}
+												/>
+												<div
+													class="hidden size-10 items-center justify-center rounded-full bg-primary/10 font-medium text-primary"
+												>
+													{student.firstName[0]}{student.lastName[0]}
+												</div>
+											{:else}
+												<div
+													class="flex size-10 items-center justify-center rounded-full bg-primary/10 font-medium text-primary"
+												>
+													{student.firstName[0]}{student.lastName[0]}
+												</div>
+											{/if}
 										</div>
 										<div class="flex min-w-0 flex-col">
 											<div class="font-medium text-foreground">

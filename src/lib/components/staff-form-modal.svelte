@@ -19,6 +19,7 @@
 		lastName: string;
 		role: 'nurse' | 'doctor' | 'admin' | 'staff';
 		phoneNumber?: string | null;
+		profileUrl?: string | null;
 		isActive?: boolean;
 	};
 
@@ -51,7 +52,8 @@
 		firstName: '',
 		lastName: '',
 		role: '',
-		phoneNumber: ''
+		phoneNumber: '',
+		profileUrl: ''
 	});
 
 	// Initialize form with staff data when editing
@@ -87,7 +89,8 @@
 			firstName: staffData.firstName || '',
 			lastName: staffData.lastName || '',
 			role: staffData.role || '',
-			phoneNumber: staffData.phoneNumber || ''
+			phoneNumber: staffData.phoneNumber || '',
+			profileUrl: staffData.profileUrl || ''
 		};
 	}
 
@@ -97,7 +100,8 @@
 			firstName: '',
 			lastName: '',
 			role: '',
-			phoneNumber: ''
+			phoneNumber: '',
+			profileUrl: ''
 		};
 		errors = {};
 	}
@@ -239,6 +243,22 @@
 				/>
 				{#if errors.phoneNumber}
 					<p class="text-sm text-destructive">{errors.phoneNumber[0]}</p>
+				{/if}
+			</div>
+
+			<!-- Profile URL -->
+			<div class="space-y-2">
+				<Label for="profileUrl">Profile Picture URL</Label>
+				<Input
+					id="profileUrl"
+					name="profileUrl"
+					type="url"
+					bind:value={formData.profileUrl}
+					placeholder="Enter profile picture URL (optional)"
+					class="w-full"
+				/>
+				{#if errors.profileUrl}
+					<p class="text-sm text-destructive">{errors.profileUrl[0]}</p>
 				{/if}
 			</div>
 

@@ -24,6 +24,12 @@ export const addStudentSchema = z.object({
 	grade: z.string().min(1, 'Grade is required').max(20, 'Grade must be 20 characters or less'),
 	section: z.string().max(50, 'Section must be 50 characters or less').optional(),
 	address: z.string().max(500, 'Address must be 500 characters or less').optional(),
+	profileUrl: z
+		.string()
+		.url('Please enter a valid URL')
+		.max(500, 'Profile URL must be 500 characters or less')
+		.optional()
+		.or(z.literal('')),
 
 	// Medical Information
 	chronicHealthConditions: z.string().optional(),

@@ -104,6 +104,7 @@ export const actions: Actions = {
 				grade: formData.get('grade') as string,
 				section: formData.get('section') as string | null,
 				address: formData.get('address') as string | null,
+				profileUrl: formData.get('profileUrl') as string | null,
 				chronicHealthConditions: formData.get('chronicHealthConditions') as string | null,
 				currentMedications: formData.get('currentMedications') as string | null,
 				healthHistory: formData.get('healthHistory') as string | null,
@@ -189,6 +190,7 @@ export const actions: Actions = {
 					grade: studentData.grade,
 					section: studentData.section || null,
 					address: studentData.address || null,
+					profileUrl: studentData.profileUrl || null,
 					chronicHealthConditions: studentData.chronicHealthConditions
 						? studentData.chronicHealthConditions
 								.split(',')
@@ -258,6 +260,7 @@ export const actions: Actions = {
 				grade: formData.get('grade') as string,
 				section: formData.get('section') as string | null,
 				address: formData.get('address') as string | null,
+				profileUrl: formData.get('profileUrl') as string | null,
 				chronicHealthConditions: formData.get('chronicHealthConditions') as string | null,
 				currentMedications: formData.get('currentMedications') as string | null,
 				healthHistory: formData.get('healthHistory') as string | null,
@@ -341,6 +344,7 @@ export const actions: Actions = {
 					grade: studentData.grade,
 					section: studentData.section || null,
 					address: studentData.address || null,
+					profileUrl: studentData.profileUrl || null,
 					chronicHealthConditions: studentData.chronicHealthConditions
 						? studentData.chronicHealthConditions
 								.split(',')

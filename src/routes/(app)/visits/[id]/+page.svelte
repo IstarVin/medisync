@@ -304,9 +304,9 @@
 						<!-- Patient Avatar and Name -->
 						<div class="flex items-center space-x-3">
 							<Avatar class="h-16 w-16">
-								{#if visit.student.profilePicture}
+								{#if visit.student.profileUrl}
 									<AvatarImage
-										src={visit.student.profilePicture}
+										src={visit.student.profileUrl}
 										alt={`${visit.student.firstName} ${visit.student.lastName}`}
 									/>
 								{/if}

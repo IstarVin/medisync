@@ -184,9 +184,9 @@
 						<!-- Student photo and basic info -->
 						<div class="flex flex-col items-center gap-3">
 							<Avatar class="size-16">
-								{#if student.profilePicture}
+								{#if student.profileUrl}
 									<AvatarImage
-										src={student.profilePicture}
+										src={student.profileUrl}
 										alt="{student.firstName} {student.lastName}"
 									/>
 								{/if}

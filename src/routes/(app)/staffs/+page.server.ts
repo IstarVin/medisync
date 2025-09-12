@@ -17,6 +17,7 @@ export const load: PageServerLoad = async () => {
 				lastName: users.lastName,
 				role: users.role,
 				phoneNumber: users.phoneNumber,
+				profileUrl: users.profileUrl,
 				isActive: users.isActive,
 				lastLogin: users.lastLogin,
 				createdAt: users.createdAt,
@@ -74,7 +75,8 @@ export const actions: Actions = {
 				firstName: formData.get('firstName')?.toString() || '',
 				lastName: formData.get('lastName')?.toString() || '',
 				role: formData.get('role')?.toString() || '',
-				phoneNumber: formData.get('phoneNumber')?.toString() || ''
+				phoneNumber: formData.get('phoneNumber')?.toString() || '',
+				profileUrl: formData.get('profileUrl')?.toString() || ''
 			};
 
 			// Validate the data
@@ -136,6 +138,7 @@ export const actions: Actions = {
 					lastName: validatedData.lastName,
 					role: validatedData.role as 'nurse' | 'doctor' | 'admin' | 'staff',
 					phoneNumber: validatedData.phoneNumber || null,
+					profileUrl: validatedData.profileUrl || null,
 					isActive: true
 				})
 				.returning();
@@ -169,7 +172,8 @@ export const actions: Actions = {
 				firstName: formData.get('firstName')?.toString() || '',
 				lastName: formData.get('lastName')?.toString() || '',
 				role: formData.get('role')?.toString() || '',
-				phoneNumber: formData.get('phoneNumber')?.toString() || ''
+				phoneNumber: formData.get('phoneNumber')?.toString() || '',
+				profileUrl: formData.get('profileUrl')?.toString() || ''
 			};
 
 			// Validate the data
@@ -200,6 +204,7 @@ export const actions: Actions = {
 					lastName: validatedData.lastName,
 					role: validatedData.role as 'nurse' | 'doctor' | 'admin' | 'staff',
 					phoneNumber: validatedData.phoneNumber || null,
+					profileUrl: validatedData.profileUrl || null,
 					updatedAt: new Date()
 				})
 				.where(eq(users.id, validatedData.id))

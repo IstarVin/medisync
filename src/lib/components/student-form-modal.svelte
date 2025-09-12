@@ -48,6 +48,7 @@
 		grade: string;
 		section?: string | null;
 		address?: string | null;
+		profileUrl?: string | null;
 		chronicHealthConditions: string[];
 		currentMedications: string[];
 		healthHistory?: string | null;
@@ -126,6 +127,7 @@
 		grade: '',
 		section: '',
 		address: '',
+		profileUrl: '',
 		chronicHealthConditions: '',
 		currentMedications: '',
 		healthHistory: '',
@@ -177,6 +179,7 @@
 			grade: studentData.grade,
 			section: studentData.section || '',
 			address: studentData.address || '',
+			profileUrl: studentData.profileUrl || '',
 			chronicHealthConditions: Array.isArray(studentData.chronicHealthConditions)
 				? studentData.chronicHealthConditions.join(', ')
 				: '',
@@ -220,6 +223,7 @@
 			grade: '',
 			section: '',
 			address: '',
+			profileUrl: '',
 			chronicHealthConditions: '',
 			currentMedications: '',
 			healthHistory: '',
@@ -467,6 +471,22 @@
 							/>
 							{#if errors.email}
 								<p class="text-sm text-destructive">{errors.email[0]}</p>
+							{/if}
+						</div>
+
+						<!-- Profile URL -->
+						<div class="space-y-2">
+							<Label for="profileUrl">Profile Picture URL</Label>
+							<Input
+								id="profileUrl"
+								name="profileUrl"
+								type="url"
+								bind:value={formData.profileUrl}
+								placeholder="Enter profile picture URL (optional)"
+								class="w-full"
+							/>
+							{#if errors.profileUrl}
+								<p class="text-sm text-destructive">{errors.profileUrl[0]}</p>
 							{/if}
 						</div>
 

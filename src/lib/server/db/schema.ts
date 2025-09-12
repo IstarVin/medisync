@@ -60,6 +60,7 @@ export const users = sqliteTable('users', {
 	lastName: text('last_name').notNull(),
 	role: text('role').$type<UserRole>().notNull().default('nurse'),
 	phoneNumber: text('phone_number'),
+	profileUrl: text('profile_url'),
 	isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
 	lastLogin: integer('last_login', { mode: 'timestamp' }),
 	createdAt: integer('created_at', { mode: 'timestamp' })
@@ -113,7 +114,7 @@ export const students = sqliteTable('students', {
 
 	enrollmentDate: integer('enrollment_date', { mode: 'timestamp' }).notNull(),
 	isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-	profilePicture: text('profile_picture'),
+	profileUrl: text('profile_url'),
 	createdAt: integer('created_at', { mode: 'timestamp' })
 		.notNull()
 		.$defaultFn(() => new Date()),

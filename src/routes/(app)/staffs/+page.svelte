@@ -34,6 +34,7 @@
 		lastName: string;
 		role: 'nurse' | 'doctor' | 'admin' | 'staff';
 		phoneNumber: string | null;
+		profileUrl: string | null;
 		isActive: boolean;
 		lastLogin: Date | null;
 		createdAt: Date;
@@ -364,8 +365,31 @@
 							<Table.Row>
 								<Table.Cell>
 									<div class="flex items-center gap-3">
-										<div class="flex size-10 items-center justify-center rounded-full bg-muted">
-											<RoleIcon class="size-5" />
+										<div class="relative size-10">
+											{#if staff.profileUrl}
+												<img
+													src={staff.profileUrl}
+													alt="{staff.firstName} {staff.lastName}"
+													class="size-10 rounded-full object-cover"
+													onerror={(e) => {
+														const target = e.target as HTMLImageElement;
+														const fallback = target?.nextElementSibling as HTMLElement;
+														if (target && fallback) {
+															target.style.display = 'none';
+															fallback.style.display = 'flex';
+														}
+													}}
+												/>
+												<div
+													class="hidden size-10 items-center justify-center rounded-full bg-muted"
+												>
+													<RoleIcon class="size-5" />
+												</div>
+											{:else}
+												<div class="flex size-10 items-center justify-center rounded-full bg-muted">
+													<RoleIcon class="size-5" />
+												</div>
+											{/if}
 										</div>
 										<div>
 											<div class="font-medium">

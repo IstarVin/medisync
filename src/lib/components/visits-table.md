@@ -67,7 +67,7 @@ type Visit = {
 		lastName: string;
 		grade: string;
 		section: string | null;
-		profilePicture?: string | null;
+		profileUrl?: string | null;
 	} | null;
 	attendedBy?: {
 		id: string;

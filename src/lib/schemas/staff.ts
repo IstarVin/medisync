@@ -22,6 +22,12 @@ export const addStaffSchema = z.object({
 		.string()
 		.max(20, 'Phone number must be 20 characters or less')
 		.optional()
+		.or(z.literal('')),
+	profileUrl: z
+		.string()
+		.url('Please enter a valid URL')
+		.max(500, 'Profile URL must be 500 characters or less')
+		.optional()
 		.or(z.literal(''))
 });
 
@@ -42,6 +48,12 @@ export const updateStaffSchema = z.object({
 	phoneNumber: z
 		.string()
 		.max(20, 'Phone number must be 20 characters or less')
+		.optional()
+		.or(z.literal('')),
+	profileUrl: z
+		.string()
+		.url('Please enter a valid URL')
+		.max(500, 'Profile URL must be 500 characters or less')
 		.optional()
 		.or(z.literal(''))
 });

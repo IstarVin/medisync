@@ -16,7 +16,7 @@ export const load: PageServerLoad = async () => {
 						lastName: true,
 						grade: true,
 						section: true,
-						profilePicture: true
+						profileUrl: true
 					}
 				},
 				attendedBy: {
@@ -52,7 +52,9 @@ export const load: PageServerLoad = async () => {
 		const uniqueVisitTypes = [...new Set(allVisits.map((v) => v.visitType))].sort();
 		const uniqueStatuses = [...new Set(allVisits.map((v) => v.status))].sort();
 		const uniqueSeverities = [...new Set(allVisits.map((v) => v.severity))].sort();
-		const uniqueGrades = [...new Set(allVisits.map((v) => v.student?.grade).filter(Boolean))].sort();
+		const uniqueGrades = [
+			...new Set(allVisits.map((v) => v.student?.grade).filter(Boolean))
+		].sort();
 
 		return {
 			visits: allVisits,
