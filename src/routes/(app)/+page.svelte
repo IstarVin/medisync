@@ -7,11 +7,22 @@
 	import VisitSummaryCards from '$lib/components/visit-summary-cards.svelte';
 	import VisitsTable from '$lib/components/visits-table.svelte';
 	import { app } from '$lib/states/app.svelte.js';
-	import { QrCode } from '@lucide/svelte';
+	import { AlertTriangle, Circle, QrCode } from '@lucide/svelte';
 
 	let { data } = $props();
 
 	let showQrScanner = $state(false);
+
+	// Process severity counts for display
+	const severityStats = $derived(() => {
+		const stats = { low: 0, medium: 0, high: 0, critical: 0 };
+		data.severityCounts.forEach((item: { severity: string; count: number }) => {
+			if (item.severity in stats) {
+				stats[item.severity as keyof typeof stats] = item.count;
+			}
+		});
+		return stats;
+	});
 
 	const visitSummaries = [
 		{
@@ -94,9 +105,6 @@
 				<h1 class="medical-typography-heading text-2xl text-foreground md:text-3xl lg:text-4xl">
 					Dashboard
 				</h1>
-				<!-- <p
-					class="medical-typography-body text-sm text-muted-foreground md:text-base lg:text-lg"
-				></p> -->
 			</div>
 			<div class="flex items-center gap-3">
 				<Switch id="qrEnabled" bind:checked={app.qrEnabled} />
@@ -104,6 +112,61 @@
 			</div>
 		</div>
 	</header>
+
+	<!-- Dashboard Stats Section -->
+	<section class="px-4 py-4 md:px-6">
+		<div class="rounded-lg border border-border bg-card p-4">
+			<h2 class="medical-typography-heading mb-3 text-sm font-medium text-foreground">
+				This Month's Cases by Severity
+			</h2>
+			<div class="flex flex-wrap gap-4 text-sm">
+				<!-- Medium Cases -->
+				{#if severityStats().medium > 0}
+					<div class="flex items-center gap-2">
+						<Circle class="h-3 w-3 fill-yellow-500 text-yellow-500" />
+						<span class="text-foreground">
+							<strong>{severityStats().medium}</strong> Medium case{severityStats().medium !== 1
+								? 's'
+								: ''}
+						</span>
+					</div>
+				{/if}
+
+				<!-- High Cases -->
+				{#if severityStats().high > 0}
+					<div class="flex items-center gap-2">
+						<AlertTriangle class="h-3 w-3 fill-orange-500 text-orange-500" />
+						<span class="text-foreground">
+							<strong>{severityStats().high}</strong> High case{severityStats().high !== 1
+								? 's'
+								: ''}
+						</span>
+					</div>
+				{/if}
+
+				<!-- Critical Cases -->
+				{#if severityStats().critical > 0}
+					<div class="flex items-center gap-2">
+						<AlertTriangle class="h-3 w-3 fill-red-500 text-red-500" />
+						<span class="text-foreground">
+							<strong>{severityStats().critical}</strong> Critical case{severityStats().critical !==
+							1
+								? 's'
+								: ''}
+						</span>
+					</div>
+				{/if}
+
+				<!-- No urgent cases message -->
+				{#if severityStats().medium === 0 && severityStats().high === 0 && severityStats().critical === 0}
+					<div class="flex items-center gap-2 text-muted-foreground">
+						<Circle class="h-3 w-3 fill-green-500 text-green-500" />
+						<span>No medium, high, or critical cases this month</span>
+					</div>
+				{/if}
+			</div>
+		</div>
+	</section>
 
 	<!-- Visit summaries section with responsive spacing -->
 	<section class="py-6 md:py-8">

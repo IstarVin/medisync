@@ -35,6 +35,21 @@ export const load: PageServerLoad = async () => {
 			)
 		);
 
+	// Get severity counts for this month
+	const severityCounts = await db
+		.select({
+			severity: clinicVisits.severity,
+			count: count()
+		})
+		.from(clinicVisits)
+		.where(
+			and(
+				baseCondition,
+				sql`strftime('%Y-%m', datetime(${clinicVisits.checkInTime} / 1000, 'unixepoch')) = strftime('%Y-%m', 'now')`
+			)
+		)
+		.groupBy(clinicVisits.severity);
+
 	// Get recent visits with student information
 	const recentVisits = await db
 		.select({
@@ -66,6 +81,7 @@ export const load: PageServerLoad = async () => {
 		recentVisits,
 		visitsThisDay,
 		visitsThisMonth,
-		totalVisits
+		totalVisits,
+		severityCounts
 	};
 };
