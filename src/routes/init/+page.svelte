@@ -76,10 +76,10 @@
 </script>
 
 <svelte:head>
-	<title>Setup Admin Account - MediSYNC</title>
+	<title>Setup Admin Account - CareLog</title>
 	<meta
 		name="description"
-		content="Create your administrator account to get started with MediSYNC"
+		content="Create your administrator account to get started with CareLog"
 	/>
 </svelte:head>
 
@@ -105,7 +105,7 @@
 			</div>
 			<div class="space-y-2">
 				<h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
-					Welcome to MediSYNC
+					Welcome to CareLog
 				</h1>
 				<p class="text-gray-600 dark:text-gray-300">
 					Set up your administrator account to get started
@@ -439,7 +439,7 @@
 				This account will have full administrative privileges
 			</p>
 			<p class="text-xs text-gray-400 dark:text-gray-500">
-				MediSYNC v1.0 - School Clinic Management System
+				CareLog v1.0 - School Clinic Management System
 			</p>
 		</div>
 	</div>

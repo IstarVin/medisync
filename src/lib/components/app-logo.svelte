@@ -18,7 +18,7 @@
 		</svg>
 	</div>
 	<div>
-		<h1 class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">MediSYNC</h1>
+		<h1 class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">CareLog</h1>
 		{#if showSubtitle}
 			<p class="text-sm text-gray-500 dark:text-gray-400">Clinic Management</p>
 		{/if}

@@ -2,9 +2,9 @@
 applyTo: '**'
 ---
 
-# MediSYNC - School Clinic Management System
+# CareLog - School Clinic Management System
 
-A simple and efficient School Clinic Management System that uses QR code technology to provide quick healthcare access at educational institutions. MediSYNC is designed specifically for emergency situations where time, accuracy, and immediate access to student information are crucial.
+A simple and efficient School Clinic Management System that uses QR code technology to provide quick healthcare access at educational institutions. CareLog is designed specifically for emergency situations where time, accuracy, and immediate access to student information are crucial.
 
 ## 📋 Emergency Visit Workflow
 
@@ -80,6 +80,6 @@ The system instantly shows all essential medical information:
 - **Incident Reporting**: Automatic generation of incident reports for serious cases
 - **Parent Communication**: Email summary sent to parents with complete visit details
 
-**MediSYNC** - Simple, fast, and reliable school clinic management for emergency care.
+**CareLog** - Simple, fast, and reliable school clinic management for emergency care.
 
 _Designed for simplicity and speed when every second counts._

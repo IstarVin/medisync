@@ -9,7 +9,7 @@
 <svelte:head>
 	<link rel="icon" href={favicon} />
 	<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
-	<title>MediSYNC - School Clinic Management</title>
+	<title>CareLog - School Clinic Management</title>
 	<meta
 		name="description"
 		content="Modern school clinic management system with QR code technology for emergency healthcare access."

@@ -347,7 +347,7 @@ This is an important message regarding ${student.firstName} ${student.lastName} 
 ${mailData.message}
 
 ---
-This message was sent from MediSYNC School Health Management System.
+This message was sent from CareLog School Health Management System.
 Please contact the school if you have any questions or concerns.
 
 Best regards,
@@ -461,7 +461,7 @@ This is an important message regarding ${student.firstName} ${student.lastName} 
 ${emailData.message}
 
 ---
-This message was sent from MediSYNC School Health Management System.
+This message was sent from CareLog School Health Management System.
 Please contact the school if you have any questions or concerns.
 
 Best regards,
@@ -484,7 +484,7 @@ This is an important message from the school health office.
 ${emailData.message}
 
 ---
-This message was sent from MediSYNC School Health Management System.
+This message was sent from CareLog School Health Management System.
 If you have any questions or concerns, please contact the school health office.
 
 Best regards,
@@ -531,7 +531,7 @@ This is an important message regarding your patient ${student.firstName} ${stude
 ${emailData.message}
 
 ---
-This message was sent from MediSYNC School Health Management System.
+This message was sent from CareLog School Health Management System.
 Please contact the school if you need additional information.
 
 Best regards,

@@ -1,6 +1,6 @@
 # Visits Table Component
 
-A reusable component for displaying clinic visit records with consistent styling and functionality across the MediSync application.
+A reusable component for displaying clinic visit records with consistent styling and functionality across the CareLog application.
 
 ## Usage
 
@@ -124,7 +124,7 @@ type Visit = {
 ## Features
 
 - **Responsive Design**: Works on mobile and desktop
-- **Consistent Styling**: Matches the MediSync design system
+- **Consistent Styling**: Matches the CareLog design system
 - **Flexible Configuration**: Show/hide columns as needed
 - **Empty States**: Customizable empty state messages
 - **Badge Indicators**: Color-coded badges for visit type, severity, and status

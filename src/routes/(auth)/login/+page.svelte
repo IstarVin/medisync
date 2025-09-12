@@ -83,7 +83,7 @@
 						Welcome Back
 					</h1>
 					<p class="text-sm text-slate-600 dark:text-slate-400">
-						Sign in to access your MediSYNC dashboard
+						Sign in to access your CareLog dashboard
 					</p>
 				</div>
 			</div>
@@ -109,7 +109,7 @@
 							return async ({ result, update }) => {
 								if (result.type === 'success') {
 									toast.success('Login successful!', {
-										description: 'Welcome back to MediSYNC.'
+										description: 'Welcome back to CareLog.'
 									});
 								} else if (result.type === 'failure') {
 									toast.error('Login failed', {
@@ -216,7 +216,7 @@
 								<Loader2 class="mr-2 h-4 w-4 animate-spin" />
 								Signing In...
 							{:else}
-								Sign In to MediSYNC
+								Sign In to CareLog
 							{/if}
 						</Button>
 					</form>
@@ -233,7 +233,7 @@
 			<!-- Footer -->
 			<div class="mt-8 text-center">
 				<p class="text-xs text-slate-500 dark:text-slate-400">
-					© 2025 MediSYNC. All rights reserved. | School Clinic Management System
+					© 2025 CareLog. All rights reserved. | School Clinic Management System
 				</p>
 			</div>
 		</div>

@@ -1,4 +1,17 @@
-# sv
+# CareLog - School Clinic Management System
+
+A simple and efficient School Clinic Management System that uses QR code technology to provide quick healthcare access at educational institutions. CareLog is designed specifically for emergency situations where time, accuracy, and immediate access to student information are crucial.
+
+## Features
+
+- QR code-based student identification
+- Quick medical record access
+- Emergency contact management
+- Visit tracking and documentation
+- Staff management system
+- Responsive web interface
+
+## Getting Started
 
 Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 

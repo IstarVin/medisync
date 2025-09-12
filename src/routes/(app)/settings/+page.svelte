@@ -111,7 +111,7 @@
 					use:enhance={() => {
 						isUpdatingProfile = true;
 						return async ({ update }) => {
-							await update();
+							await update({ reset: false });
 							isUpdatingProfile = false;
 						};
 					}}

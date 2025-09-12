@@ -106,10 +106,10 @@
 			ctx.font = '14px Arial';
 			ctx.fillText(`Student ID: ${studentId}`, canvas.width / 2, textStartY + 25);
 
-			// MediSYNC label
+			// CareLog label
 			ctx.font = '12px Arial';
 			ctx.fillStyle = '#666666';
-			ctx.fillText('MediSYNC - School Clinic Management', canvas.width / 2, textStartY + 45);
+			ctx.fillText('CareLog - School Clinic Management', canvas.width / 2, textStartY + 45);
 
 			// Convert to blob and download
 			canvas.toBlob((blob) => {
