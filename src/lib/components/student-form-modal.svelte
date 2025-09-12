@@ -73,7 +73,74 @@
 
 	// Form state
 	let submitting = $state(false);
+	// Validation state
 	let errors = $state<Record<string, string[]>>({});
+	let clientErrors = $state<Record<string, string[]>>({});
+
+	// Client-side validation function
+	function validateField(fieldName: string, value: any): string[] {
+		const fieldErrors: string[] = [];
+
+		switch (fieldName) {
+			case 'studentId':
+				if (!value?.trim()) {
+					fieldErrors.push('Student ID is required');
+				} else if (value.length > 50) {
+					fieldErrors.push('Student ID must be 50 characters or less');
+				}
+				break;
+			case 'firstName':
+				if (!value?.trim()) {
+					fieldErrors.push('First name is required');
+				} else if (value.length > 100) {
+					fieldErrors.push('First name must be 100 characters or less');
+				}
+				break;
+			case 'lastName':
+				if (!value?.trim()) {
+					fieldErrors.push('Last name is required');
+				} else if (value.length > 100) {
+					fieldErrors.push('Last name must be 100 characters or less');
+				}
+				break;
+			case 'email':
+				if (value && value.trim()) {
+					const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+					if (!emailRegex.test(value)) {
+						fieldErrors.push('Please enter a valid email address');
+					}
+				}
+				break;
+			case 'grade':
+				if (!value?.trim()) {
+					fieldErrors.push('Grade is required');
+				}
+				break;
+			case 'gender':
+				if (!value?.trim()) {
+					fieldErrors.push('Gender is required');
+				}
+				break;
+			case 'dateOfBirth':
+				if (!value?.trim()) {
+					fieldErrors.push('Date of birth is required');
+				}
+				break;
+		}
+
+		return fieldErrors;
+	}
+
+	// Real-time validation
+	function handleFieldValidation(fieldName: string, value: any) {
+		const fieldErrors = validateField(fieldName, value);
+		if (fieldErrors.length > 0) {
+			clientErrors[fieldName] = fieldErrors;
+		} else {
+			delete clientErrors[fieldName];
+		}
+		clientErrors = { ...clientErrors };
+	}
 
 	// Emergency contacts management
 	let emergencyContactsState = $state<EmergencyContact[]>([]);
@@ -284,19 +351,73 @@
 		</Dialog.Header>
 
 		<div class="flex-1 overflow-y-auto pr-2">
+			<!-- Show general form errors -->
+			{#if errors._form}
+				<div class="mb-4 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+					{errors._form[0]}
+				</div>
+			{/if}
+
+			{#if errors.emergencyContacts}
+				<div class="mb-4 rounded-md bg-destructive/15 p-3 text-sm text-destructive">
+					{errors.emergencyContacts[0]}
+				</div>
+			{/if}
+
 			<form
 				method="POST"
 				action={formAction}
 				use:enhance={() => {
 					submitting = true;
+					errors = {}; // Clear previous errors
+					clientErrors = {}; // Clear client errors too
 					return async ({ result, formData }) => {
 						submitting = false;
 
 						if (result.type === 'failure') {
 							errors = (result.data?.errors as any) || {};
-							toast.error(`Failed to ${mode} student`, {
-								description: 'Please check the form for errors and try again.'
-							});
+
+							// Show specific error toast based on the type of error
+							if (errors.studentId && errors.studentId[0]?.includes('already exists')) {
+								toast.error('Student ID already exists', {
+									description: 'Please choose a different student ID.'
+								});
+							} else if (errors.email && errors.email[0]?.includes('already exists')) {
+								toast.error('Email already exists', {
+									description: 'Please use a different email address.'
+								});
+							} else {
+								toast.error(`Failed to ${mode} student`, {
+									description: 'Please check the form for errors and try again.'
+								});
+							}
+
+							// Restore form data if available
+							if (result.data?.formData) {
+								const serverData = result.data.formData as Record<string, string>;
+								Object.assign(formData, {
+									studentId: serverData.studentId || '',
+									firstName: serverData.firstName || '',
+									lastName: serverData.lastName || '',
+									middleName: serverData.middleName || '',
+									email: serverData.email || '',
+									dateOfBirth: serverData.dateOfBirth || '',
+									gender: serverData.gender || '',
+									grade: serverData.grade || '',
+									section: serverData.section || '',
+									address: serverData.address || '',
+									profileUrl: serverData.profileUrl || '',
+									chronicHealthConditions: serverData.chronicHealthConditions || '',
+									currentMedications: serverData.currentMedications || '',
+									healthHistory: serverData.healthHistory || '',
+									doctorId: serverData.doctorId || ''
+								});
+							}
+
+							// Restore emergency contacts if available
+							if (result.data?.emergencyContacts) {
+								emergencyContactsState = result.data.emergencyContacts as EmergencyContact[];
+							}
 						} else if (result.type === 'success') {
 							const action = mode === 'edit' ? 'updated' : 'added';
 							toast.success(`Student ${action} successfully!`, {
@@ -361,26 +482,39 @@
 					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 						<!-- Student ID -->
 						<div class="space-y-2">
-							<Label for="studentId">Student ID *</Label>
+							<Label for="studentId" class="flex items-center gap-1">
+								Student ID
+								<span class="text-destructive">*</span>
+							</Label>
 							<Input
 								id="studentId"
 								name="studentId"
 								bind:value={formData.studentId}
+								onblur={() => handleFieldValidation('studentId', formData.studentId)}
 								placeholder="Enter student ID"
-								class="w-full"
+								class={cn(
+									'w-full',
+									(errors.studentId || clientErrors.studentId) &&
+										'border-destructive focus-visible:ring-destructive'
+								)}
 								required
 								readonly={mode === 'edit'}
 							/>
-							{#if errors.studentId}
-								<p class="text-sm text-destructive">{errors.studentId[0]}</p>
+							{#if errors.studentId || clientErrors.studentId}
+								<p class="text-sm text-destructive">
+									{(errors.studentId || clientErrors.studentId)?.[0]}
+								</p>
 							{/if}
 						</div>
 
 						<!-- Grade -->
 						<div class="space-y-2">
-							<Label>Grade *</Label>
+							<Label class="flex items-center gap-1">
+								Grade
+								<span class="text-destructive">*</span>
+							</Label>
 							<Select.Root bind:value={formData.grade} type="single">
-								<Select.Trigger class="w-full">
+								<Select.Trigger class={cn('w-full', errors.grade && 'border-destructive')}>
 									{formData.grade ? formData.grade : 'Select grade'}
 								</Select.Trigger>
 								<Select.Content>
@@ -396,34 +530,57 @@
 						</div>
 
 						<!-- First Name -->
+						<!-- First Name -->
 						<div class="space-y-2">
-							<Label for="firstName">First Name *</Label>
+							<Label for="firstName" class="flex items-center gap-1">
+								First Name
+								<span class="text-destructive">*</span>
+							</Label>
 							<Input
 								id="firstName"
 								name="firstName"
 								bind:value={formData.firstName}
+								onblur={() => handleFieldValidation('firstName', formData.firstName)}
 								placeholder="Enter first name"
-								class="w-full"
+								class={cn(
+									'w-full',
+									(errors.firstName || clientErrors.firstName) &&
+										'border-destructive focus-visible:ring-destructive'
+								)}
 								required
+								autocomplete="given-name"
 							/>
-							{#if errors.firstName}
-								<p class="text-sm text-destructive">{errors.firstName[0]}</p>
+							{#if errors.firstName || clientErrors.firstName}
+								<p class="text-sm text-destructive">
+									{(errors.firstName || clientErrors.firstName)?.[0]}
+								</p>
 							{/if}
 						</div>
 
 						<!-- Last Name -->
 						<div class="space-y-2">
-							<Label for="lastName">Last Name *</Label>
+							<Label for="lastName" class="flex items-center gap-1">
+								Last Name
+								<span class="text-destructive">*</span>
+							</Label>
 							<Input
 								id="lastName"
 								name="lastName"
 								bind:value={formData.lastName}
+								onblur={() => handleFieldValidation('lastName', formData.lastName)}
 								placeholder="Enter last name"
-								class="w-full"
+								class={cn(
+									'w-full',
+									(errors.lastName || clientErrors.lastName) &&
+										'border-destructive focus-visible:ring-destructive'
+								)}
 								required
+								autocomplete="family-name"
 							/>
-							{#if errors.lastName}
-								<p class="text-sm text-destructive">{errors.lastName[0]}</p>
+							{#if errors.lastName || clientErrors.lastName}
+								<p class="text-sm text-destructive">
+									{(errors.lastName || clientErrors.lastName)?.[0]}
+								</p>
 							{/if}
 						</div>
 
@@ -435,7 +592,11 @@
 								name="middleName"
 								bind:value={formData.middleName}
 								placeholder="Enter middle name (optional)"
-								class="w-full"
+								class={cn(
+									'w-full',
+									errors.middleName && 'border-destructive focus-visible:ring-destructive'
+								)}
+								autocomplete="additional-name"
 							/>
 							{#if errors.middleName}
 								<p class="text-sm text-destructive">{errors.middleName[0]}</p>
@@ -450,7 +611,10 @@
 								name="section"
 								bind:value={formData.section}
 								placeholder="Enter section (optional)"
-								class="w-full"
+								class={cn(
+									'w-full',
+									errors.section && 'border-destructive focus-visible:ring-destructive'
+								)}
 							/>
 							{#if errors.section}
 								<p class="text-sm text-destructive">{errors.section[0]}</p>
@@ -465,12 +629,17 @@
 								name="email"
 								type="email"
 								bind:value={formData.email}
+								onblur={() => handleFieldValidation('email', formData.email)}
 								placeholder="Enter email (optional)"
-								class="w-full"
+								class={cn(
+									'w-full',
+									(errors.email || clientErrors.email) &&
+										'border-destructive focus-visible:ring-destructive'
+								)}
 								autocomplete="email"
 							/>
-							{#if errors.email}
-								<p class="text-sm text-destructive">{errors.email[0]}</p>
+							{#if errors.email || clientErrors.email}
+								<p class="text-sm text-destructive">{(errors.email || clientErrors.email)?.[0]}</p>
 							{/if}
 						</div>
 
@@ -483,7 +652,10 @@
 								type="url"
 								bind:value={formData.profileUrl}
 								placeholder="Enter profile picture URL (optional)"
-								class="w-full"
+								class={cn(
+									'w-full',
+									errors.profileUrl && 'border-destructive focus-visible:ring-destructive'
+								)}
 							/>
 							{#if errors.profileUrl}
 								<p class="text-sm text-destructive">{errors.profileUrl[0]}</p>
@@ -492,7 +664,10 @@
 
 						<!-- Date of Birth -->
 						<div class="space-y-2">
-							<Label>Date of Birth *</Label>
+							<Label class="flex items-center gap-1">
+								Date of Birth
+								<span class="text-destructive">*</span>
+							</Label>
 							<Popover.Root>
 								<Popover.Trigger class="w-full justify-start">
 									{#snippet child({ props })}
@@ -529,9 +704,12 @@
 
 						<!-- Gender -->
 						<div class="space-y-2 md:col-span-2">
-							<Label>Gender *</Label>
+							<Label class="flex items-center gap-1">
+								Gender
+								<span class="text-destructive">*</span>
+							</Label>
 							<Select.Root bind:value={formData.gender} type="single">
-								<Select.Trigger class="w-full">
+								<Select.Trigger class={cn('w-full', errors.gender && 'border-destructive')}>
 									{formData.gender ? toTitleCase(formData.gender) : 'Select gender'}
 								</Select.Trigger>
 								<Select.Content>
@@ -555,7 +733,10 @@
 							name="address"
 							bind:value={formData.address}
 							placeholder="Enter full address (optional)"
-							class="w-full"
+							class={cn(
+								'w-full',
+								errors.address && 'border-destructive focus-visible:ring-destructive'
+							)}
 							rows={2}
 							autocomplete="address-line1"
 						/>
@@ -577,7 +758,11 @@
 							name="chronicHealthConditions"
 							bind:value={formData.chronicHealthConditions}
 							placeholder="Enter any chronic health conditions (e.g., asthma, diabetes, allergies)"
-							class="w-full"
+							class={cn(
+								'w-full',
+								errors.chronicHealthConditions &&
+									'border-destructive focus-visible:ring-destructive'
+							)}
 							rows={2}
 						/>
 						<p class="text-sm text-muted-foreground">
@@ -597,7 +782,10 @@
 							name="currentMedications"
 							bind:value={formData.currentMedications}
 							placeholder="Enter current medications and dosages"
-							class="w-full"
+							class={cn(
+								'w-full',
+								errors.currentMedications && 'border-destructive focus-visible:ring-destructive'
+							)}
 							rows={2}
 						/>
 						<p class="text-sm text-muted-foreground">
@@ -617,7 +805,10 @@
 							name="healthHistory"
 							bind:value={formData.healthHistory}
 							placeholder="Enter any additional health history or notes"
-							class="w-full"
+							class={cn(
+								'w-full',
+								errors.healthHistory && 'border-destructive focus-visible:ring-destructive'
+							)}
 							rows={3}
 						/>
 						<p class="text-sm text-muted-foreground">
@@ -726,12 +917,19 @@
 							<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 								<!-- Contact Name -->
 								<div class="space-y-2">
-									<Label for="emergencyContactName{index}">Contact Name *</Label>
+									<Label for="emergencyContactName{index}" class="flex items-center gap-1">
+										Contact Name
+										<span class="text-destructive">*</span>
+									</Label>
 									<Input
 										id="emergencyContactName{index}"
 										bind:value={contact.name}
 										placeholder="Enter emergency contact name"
-										class="w-full"
+										class={cn(
+											'w-full',
+											errors[`emergencyContacts.${index}.name`] &&
+												'border-destructive focus-visible:ring-destructive'
+										)}
 										required
 									/>
 									{#if errors[`emergencyContacts.${index}.name`]}
@@ -743,9 +941,17 @@
 
 								<!-- Contact Relationship -->
 								<div class="space-y-2">
-									<Label>Relationship *</Label>
+									<Label class="flex items-center gap-1">
+										Relationship
+										<span class="text-destructive">*</span>
+									</Label>
 									<Select.Root bind:value={contact.relationship} type="single">
-										<Select.Trigger class="w-full">
+										<Select.Trigger
+											class={cn(
+												'w-full',
+												errors[`emergencyContacts.${index}.relationship`] && 'border-destructive'
+											)}
+										>
 											{contact.relationship
 												? toTitleCase(contact.relationship)
 												: 'Select relationship'}
@@ -765,13 +971,20 @@
 
 								<!-- Contact Phone -->
 								<div class="space-y-2">
-									<Label for="emergencyContactPhone{index}">Phone Number *</Label>
+									<Label for="emergencyContactPhone{index}" class="flex items-center gap-1">
+										Phone Number
+										<span class="text-destructive">*</span>
+									</Label>
 									<Input
 										id="emergencyContactPhone{index}"
 										type="tel"
 										bind:value={contact.phoneNumber}
 										placeholder="Enter phone number"
-										class="w-full"
+										class={cn(
+											'w-full',
+											errors[`emergencyContacts.${index}.phoneNumber`] &&
+												'border-destructive focus-visible:ring-destructive'
+										)}
 										required
 									/>
 									{#if errors[`emergencyContacts.${index}.phoneNumber`]}
@@ -789,7 +1002,11 @@
 										type="tel"
 										bind:value={contact.alternatePhone}
 										placeholder="Enter alternate phone (optional)"
-										class="w-full"
+										class={cn(
+											'w-full',
+											errors[`emergencyContacts.${index}.alternatePhone`] &&
+												'border-destructive focus-visible:ring-destructive'
+										)}
 									/>
 									{#if errors[`emergencyContacts.${index}.alternatePhone`]}
 										<p class="text-sm text-destructive">
@@ -806,7 +1023,11 @@
 										type="email"
 										bind:value={contact.email}
 										placeholder="Enter email (optional)"
-										class="w-full"
+										class={cn(
+											'w-full',
+											errors[`emergencyContacts.${index}.email`] &&
+												'border-destructive focus-visible:ring-destructive'
+										)}
 									/>
 									{#if errors[`emergencyContacts.${index}.email`]}
 										<p class="text-sm text-destructive">
@@ -823,7 +1044,11 @@
 									id="emergencyContactAddress{index}"
 									bind:value={contact.address}
 									placeholder="Enter emergency contact address (optional)"
-									class="w-full"
+									class={cn(
+										'w-full',
+										errors[`emergencyContacts.${index}.address`] &&
+											'border-destructive focus-visible:ring-destructive'
+									)}
 									rows={2}
 								/>
 								{#if errors[`emergencyContacts.${index}.address`]}

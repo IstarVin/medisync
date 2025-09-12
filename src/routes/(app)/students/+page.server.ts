@@ -147,31 +147,178 @@ export const actions: Actions = {
 				contactIndex++;
 			}
 
-			// Validate the form data (basic validation)
-			if (
-				!studentData.studentId ||
-				!studentData.firstName ||
-				!studentData.lastName ||
-				!studentData.dateOfBirth ||
-				!studentData.gender ||
-				!studentData.grade
-			) {
-				return fail(400, {
-					error: 'Required fields are missing'
-				});
+			// Comprehensive validation
+			const errors: Record<string, string[]> = {};
+
+			// Validate required student fields
+			if (!studentData.studentId?.trim()) {
+				errors.studentId = ['Student ID is required'];
+			} else if (studentData.studentId.length > 50) {
+				errors.studentId = ['Student ID must be 50 characters or less'];
 			}
 
+			if (!studentData.firstName?.trim()) {
+				errors.firstName = ['First name is required'];
+			} else if (studentData.firstName.length > 100) {
+				errors.firstName = ['First name must be 100 characters or less'];
+			}
+
+			if (!studentData.lastName?.trim()) {
+				errors.lastName = ['Last name is required'];
+			} else if (studentData.lastName.length > 100) {
+				errors.lastName = ['Last name must be 100 characters or less'];
+			}
+
+			if (studentData.middleName && studentData.middleName.length > 100) {
+				errors.middleName = ['Middle name must be 100 characters or less'];
+			}
+
+			if (studentData.email && studentData.email.trim()) {
+				const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+				if (!emailRegex.test(studentData.email)) {
+					errors.email = ['Please enter a valid email address'];
+				}
+			}
+
+			if (!studentData.dateOfBirth?.trim()) {
+				errors.dateOfBirth = ['Date of birth is required'];
+			} else {
+				const birthDate = new Date(studentData.dateOfBirth);
+				if (isNaN(birthDate.getTime())) {
+					errors.dateOfBirth = ['Please enter a valid date'];
+				} else if (birthDate > new Date()) {
+					errors.dateOfBirth = ['Date of birth cannot be in the future'];
+				}
+			}
+
+			if (!studentData.gender?.trim()) {
+				errors.gender = ['Gender is required'];
+			} else if (!['male', 'female', 'other', 'prefer_not_to_say'].includes(studentData.gender)) {
+				errors.gender = ['Please select a valid gender'];
+			}
+
+			if (!studentData.grade?.trim()) {
+				errors.grade = ['Grade is required'];
+			} else if (studentData.grade.length > 20) {
+				errors.grade = ['Grade must be 20 characters or less'];
+			}
+
+			if (studentData.section && studentData.section.length > 50) {
+				errors.section = ['Section must be 50 characters or less'];
+			}
+
+			if (studentData.address && studentData.address.length > 500) {
+				errors.address = ['Address must be 500 characters or less'];
+			}
+
+			if (studentData.profileUrl && studentData.profileUrl.trim()) {
+				try {
+					new URL(studentData.profileUrl);
+				} catch {
+					errors.profileUrl = ['Please enter a valid URL'];
+				}
+				if (studentData.profileUrl.length > 500) {
+					errors.profileUrl = ['Profile URL must be 500 characters or less'];
+				}
+			}
+
+			if (studentData.healthHistory && studentData.healthHistory.length > 1000) {
+				errors.healthHistory = ['Health history must be 1000 characters or less'];
+			}
+
+			// Validate emergency contacts
 			if (emergencyContactsData.length === 0) {
-				return fail(400, {
-					error: 'At least one emergency contact is required'
+				errors.emergencyContacts = ['At least one emergency contact is required'];
+			} else {
+				emergencyContactsData.forEach((contact, index) => {
+					if (!contact.name?.trim()) {
+						errors[`emergencyContacts.${index}.name`] = ['Contact name is required'];
+					} else if (contact.name.length > 200) {
+						errors[`emergencyContacts.${index}.name`] = ['Name must be 200 characters or less'];
+					}
+
+					if (!contact.relationship?.trim()) {
+						errors[`emergencyContacts.${index}.relationship`] = ['Relationship is required'];
+					} else if (
+						!['parent', 'guardian', 'sibling', 'grandparent', 'other', 'adviser'].includes(
+							contact.relationship
+						)
+					) {
+						errors[`emergencyContacts.${index}.relationship`] = [
+							'Please select a valid relationship'
+						];
+					}
+
+					if (!contact.phoneNumber?.trim()) {
+						errors[`emergencyContacts.${index}.phoneNumber`] = ['Phone number is required'];
+					} else if (contact.phoneNumber.length > 20) {
+						errors[`emergencyContacts.${index}.phoneNumber`] = [
+							'Phone number must be 20 characters or less'
+						];
+					}
+
+					if (contact.alternatePhone && contact.alternatePhone.length > 20) {
+						errors[`emergencyContacts.${index}.alternatePhone`] = [
+							'Alternate phone must be 20 characters or less'
+						];
+					}
+
+					if (contact.email && contact.email.trim()) {
+						const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+						if (!emailRegex.test(contact.email)) {
+							errors[`emergencyContacts.${index}.email`] = ['Please enter a valid email address'];
+						}
+					}
+
+					if (contact.address && contact.address.length > 500) {
+						errors[`emergencyContacts.${index}.address`] = [
+							'Address must be 500 characters or less'
+						];
+					}
 				});
 			}
 
-			// Validate each emergency contact
-			for (const contact of emergencyContactsData) {
-				if (!contact.name || !contact.relationship || !contact.phoneNumber) {
+			// Return validation errors if any
+			if (Object.keys(errors).length > 0) {
+				return fail(400, {
+					errors,
+					formData: studentData,
+					emergencyContacts: emergencyContactsData
+				});
+			}
+
+			// Check for existing student ID
+			const existingStudent = await db
+				.select({ id: students.id })
+				.from(students)
+				.where(eq(students.studentId, studentData.studentId))
+				.limit(1);
+
+			if (existingStudent.length > 0) {
+				return fail(400, {
+					errors: {
+						studentId: ['A student with this ID already exists']
+					},
+					formData: studentData,
+					emergencyContacts: emergencyContactsData
+				});
+			}
+
+			// Check for existing email if provided
+			if (studentData.email && studentData.email.trim()) {
+				const existingEmail = await db
+					.select({ id: students.id })
+					.from(students)
+					.where(eq(students.email, studentData.email))
+					.limit(1);
+
+				if (existingEmail.length > 0) {
 					return fail(400, {
-						error: 'Emergency contact name, relationship, and phone number are required'
+						errors: {
+							email: ['A student with this email already exists']
+						},
+						formData: studentData,
+						emergencyContacts: emergencyContactsData
 					});
 				}
 			}
@@ -231,8 +378,29 @@ export const actions: Actions = {
 			};
 		} catch (error) {
 			console.error('Error adding student:', error);
+
+			// Handle specific database errors
+			if (error instanceof Error) {
+				if (error.message.includes('UNIQUE constraint failed: students.student_id')) {
+					return fail(400, {
+						errors: {
+							studentId: ['A student with this ID already exists']
+						}
+					});
+				}
+				if (error.message.includes('UNIQUE constraint failed: students.email')) {
+					return fail(400, {
+						errors: {
+							email: ['A student with this email already exists']
+						}
+					});
+				}
+			}
+
 			return fail(500, {
-				error: 'Failed to add student. Please try again.'
+				errors: {
+					_form: ['Failed to add student. Please try again.']
+				}
 			});
 		}
 	},
@@ -245,12 +413,15 @@ export const actions: Actions = {
 			const studentId = formData.get('id') as string;
 			if (!studentId) {
 				return fail(400, {
-					error: 'Student ID is required for updating.'
+					errors: {
+						_form: ['Student ID is required for updating.']
+					}
 				});
 			}
 
 			// Extract student data
 			const studentData = {
+				studentId: formData.get('studentId') as string,
 				firstName: formData.get('firstName') as string,
 				lastName: formData.get('lastName') as string,
 				middleName: formData.get('middleName') as string | null,
@@ -303,30 +474,178 @@ export const actions: Actions = {
 				contactIndex++;
 			}
 
-			// Basic validation
-			if (
-				!studentData.firstName ||
-				!studentData.lastName ||
-				!studentData.dateOfBirth ||
-				!studentData.gender ||
-				!studentData.grade
-			) {
-				return fail(400, {
-					error: 'Required fields are missing'
-				});
+			// Comprehensive validation
+			const errors: Record<string, string[]> = {};
+
+			// Validate required student fields
+			if (!studentData.studentId?.trim()) {
+				errors.studentId = ['Student ID is required'];
+			} else if (studentData.studentId.length > 50) {
+				errors.studentId = ['Student ID must be 50 characters or less'];
 			}
 
+			if (!studentData.firstName?.trim()) {
+				errors.firstName = ['First name is required'];
+			} else if (studentData.firstName.length > 100) {
+				errors.firstName = ['First name must be 100 characters or less'];
+			}
+
+			if (!studentData.lastName?.trim()) {
+				errors.lastName = ['Last name is required'];
+			} else if (studentData.lastName.length > 100) {
+				errors.lastName = ['Last name must be 100 characters or less'];
+			}
+
+			if (studentData.middleName && studentData.middleName.length > 100) {
+				errors.middleName = ['Middle name must be 100 characters or less'];
+			}
+
+			if (studentData.email && studentData.email.trim()) {
+				const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+				if (!emailRegex.test(studentData.email)) {
+					errors.email = ['Please enter a valid email address'];
+				}
+			}
+
+			if (!studentData.dateOfBirth?.trim()) {
+				errors.dateOfBirth = ['Date of birth is required'];
+			} else {
+				const birthDate = new Date(studentData.dateOfBirth);
+				if (isNaN(birthDate.getTime())) {
+					errors.dateOfBirth = ['Please enter a valid date'];
+				} else if (birthDate > new Date()) {
+					errors.dateOfBirth = ['Date of birth cannot be in the future'];
+				}
+			}
+
+			if (!studentData.gender?.trim()) {
+				errors.gender = ['Gender is required'];
+			} else if (!['male', 'female', 'other', 'prefer_not_to_say'].includes(studentData.gender)) {
+				errors.gender = ['Please select a valid gender'];
+			}
+
+			if (!studentData.grade?.trim()) {
+				errors.grade = ['Grade is required'];
+			} else if (studentData.grade.length > 20) {
+				errors.grade = ['Grade must be 20 characters or less'];
+			}
+
+			if (studentData.section && studentData.section.length > 50) {
+				errors.section = ['Section must be 50 characters or less'];
+			}
+
+			if (studentData.address && studentData.address.length > 500) {
+				errors.address = ['Address must be 500 characters or less'];
+			}
+
+			if (studentData.profileUrl && studentData.profileUrl.trim()) {
+				try {
+					new URL(studentData.profileUrl);
+				} catch {
+					errors.profileUrl = ['Please enter a valid URL'];
+				}
+				if (studentData.profileUrl.length > 500) {
+					errors.profileUrl = ['Profile URL must be 500 characters or less'];
+				}
+			}
+
+			if (studentData.healthHistory && studentData.healthHistory.length > 1000) {
+				errors.healthHistory = ['Health history must be 1000 characters or less'];
+			}
+
+			// Validate emergency contacts
 			if (emergencyContactsData.length === 0) {
-				return fail(400, {
-					error: 'At least one emergency contact is required'
+				errors.emergencyContacts = ['At least one emergency contact is required'];
+			} else {
+				emergencyContactsData.forEach((contact, index) => {
+					if (!contact.name?.trim()) {
+						errors[`emergencyContacts.${index}.name`] = ['Contact name is required'];
+					} else if (contact.name.length > 200) {
+						errors[`emergencyContacts.${index}.name`] = ['Name must be 200 characters or less'];
+					}
+
+					if (!contact.relationship?.trim()) {
+						errors[`emergencyContacts.${index}.relationship`] = ['Relationship is required'];
+					} else if (
+						!['parent', 'guardian', 'sibling', 'grandparent', 'other', 'adviser'].includes(
+							contact.relationship
+						)
+					) {
+						errors[`emergencyContacts.${index}.relationship`] = [
+							'Please select a valid relationship'
+						];
+					}
+
+					if (!contact.phoneNumber?.trim()) {
+						errors[`emergencyContacts.${index}.phoneNumber`] = ['Phone number is required'];
+					} else if (contact.phoneNumber.length > 20) {
+						errors[`emergencyContacts.${index}.phoneNumber`] = [
+							'Phone number must be 20 characters or less'
+						];
+					}
+
+					if (contact.alternatePhone && contact.alternatePhone.length > 20) {
+						errors[`emergencyContacts.${index}.alternatePhone`] = [
+							'Alternate phone must be 20 characters or less'
+						];
+					}
+
+					if (contact.email && contact.email.trim()) {
+						const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+						if (!emailRegex.test(contact.email)) {
+							errors[`emergencyContacts.${index}.email`] = ['Please enter a valid email address'];
+						}
+					}
+
+					if (contact.address && contact.address.length > 500) {
+						errors[`emergencyContacts.${index}.address`] = [
+							'Address must be 500 characters or less'
+						];
+					}
 				});
 			}
 
-			// Validate each emergency contact
-			for (const contact of emergencyContactsData) {
-				if (!contact.name || !contact.relationship || !contact.phoneNumber) {
+			// Return validation errors if any
+			if (Object.keys(errors).length > 0) {
+				return fail(400, {
+					errors,
+					formData: studentData,
+					emergencyContacts: emergencyContactsData
+				});
+			}
+
+			// Check for existing student ID (exclude current student)
+			const existingStudentId = await db
+				.select({ id: students.id })
+				.from(students)
+				.where(eq(students.studentId, studentData.studentId))
+				.limit(1);
+
+			if (existingStudentId.length > 0 && existingStudentId[0].id !== studentId) {
+				return fail(400, {
+					errors: {
+						studentId: ['A student with this ID already exists']
+					},
+					formData: studentData,
+					emergencyContacts: emergencyContactsData
+				});
+			}
+
+			// Check for existing email if provided (exclude current student)
+			if (studentData.email && studentData.email.trim()) {
+				const existingEmail = await db
+					.select({ id: students.id })
+					.from(students)
+					.where(eq(students.email, studentData.email))
+					.limit(1);
+
+				if (existingEmail.length > 0 && existingEmail[0].id !== studentId) {
 					return fail(400, {
-						error: 'Emergency contact name, relationship, and phone number are required'
+						errors: {
+							email: ['A student with this email already exists']
+						},
+						formData: studentData,
+						emergencyContacts: emergencyContactsData
 					});
 				}
 			}
@@ -335,6 +654,7 @@ export const actions: Actions = {
 			const [updatedStudent] = await db
 				.update(students)
 				.set({
+					studentId: studentData.studentId,
 					firstName: studentData.firstName,
 					lastName: studentData.lastName,
 					middleName: studentData.middleName || null,
@@ -392,8 +712,29 @@ export const actions: Actions = {
 			};
 		} catch (error) {
 			console.error('Error updating student:', error);
+
+			// Handle specific database errors
+			if (error instanceof Error) {
+				if (error.message.includes('UNIQUE constraint failed: students.student_id')) {
+					return fail(400, {
+						errors: {
+							studentId: ['A student with this ID already exists']
+						}
+					});
+				}
+				if (error.message.includes('UNIQUE constraint failed: students.email')) {
+					return fail(400, {
+						errors: {
+							email: ['A student with this email already exists']
+						}
+					});
+				}
+			}
+
 			return fail(500, {
-				error: 'Failed to update student. Please try again.'
+				errors: {
+					_form: ['Failed to update student. Please try again.']
+				}
 			});
 		}
 	},
