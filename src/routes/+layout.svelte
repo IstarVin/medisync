@@ -1,5 +1,4 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
 	import TransitionOverlay from '$lib/components/transition-overlay.svelte';
 	import '../app.css';
 
@@ -7,7 +6,6 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
 	<link rel="preconnect" href="https://fonts.gstatic.com/" crossorigin="" />
 	<title>CareLog - School Clinic Management</title>
 	<meta

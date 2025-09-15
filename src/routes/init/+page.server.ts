@@ -26,7 +26,7 @@ const createAdminSchema = z
 export const load: PageServerLoad = async () => {
 	const admin = await db.query.users.findFirst({ where: eq(users.role, 'admin') });
 	if (admin) {
-		return redirect(302, '/');
+		// return redirect(302, '/');
 	}
 	return {};
 };
