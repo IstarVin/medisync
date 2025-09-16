@@ -340,13 +340,13 @@ export const actions: Actions = {
 					profileUrl: studentData.profileUrl || null,
 					chronicHealthConditions: studentData.chronicHealthConditions
 						? studentData.chronicHealthConditions
-								.split(',')
+								.split(/[\n,]+/)
 								.map((s) => s.trim())
 								.filter(Boolean)
 						: [],
 					currentMedications: studentData.currentMedications
 						? studentData.currentMedications
-								.split(',')
+								.split(/[\n,]+/)
 								.map((s) => s.trim())
 								.filter(Boolean)
 						: [],

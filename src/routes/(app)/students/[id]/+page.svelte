@@ -1,18 +1,22 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import EmailModal from '$lib/components/email-modal.svelte';
+	import MedicalReferralModal from '$lib/components/medical-referral-modal.svelte';
 	import NewVisitModal from '$lib/components/new-visit-modal.svelte';
 	import QrModal from '$lib/components/qr-modal.svelte';
 	import { Avatar, AvatarFallback, AvatarImage } from '$lib/components/ui/avatar/index.js';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
 	import { Separator } from '$lib/components/ui/separator/index.js';
 	import VisitsTable from '$lib/components/visits-table.svelte';
 	import { toTitleCase } from '$lib/utils';
 	import {
 		ArrowLeft,
 		Clock,
+		EllipsisVertical,
+		FileText,
 		GraduationCap,
 		Heart,
 		Mail,
@@ -37,6 +41,7 @@
 	let newVisitModalOpen = $state(false);
 	let emailModalOpen = $state(false);
 	let qrModalOpen = $state(false);
+	let referralModalOpen = $state(false);
 	let predeterminedContact = $state<{
 		type: 'student' | 'emergency-contact' | 'doctor';
 		id?: string;
@@ -81,6 +86,11 @@
 	function handleNewVisit() {
 		// Open the new visit modal
 		newVisitModalOpen = true;
+	}
+
+	function handleGenerateReferral() {
+		// Open the medical referral modal
+		referralModalOpen = true;
 	}
 
 	function handleViewVisit(visitId: string) {
@@ -157,14 +167,29 @@
 			</div>
 
 			<div class="flex gap-2">
-				<Button onclick={handleQrCode} variant="outline">
-					<QrCode class="mr-2 size-4" />
-					QR Code
-				</Button>
 				<Button onclick={handleNewVisit}>
 					<Plus class="mr-2 size-4" />
 					New Visit
 				</Button>
+
+				<DropdownMenu.Root>
+					<DropdownMenu.Trigger>
+						<Button variant="outline" class="px-2!">
+							<EllipsisVertical class="size-4" />
+							<span class="sr-only">More actions</span>
+						</Button>
+					</DropdownMenu.Trigger>
+					<DropdownMenu.Content align="end">
+						<DropdownMenu.Item class="cursor-pointer" onclick={handleQrCode}>
+							<QrCode class="mr-2 size-4" />
+							QR Code
+						</DropdownMenu.Item>
+						<DropdownMenu.Item class="cursor-pointer" onclick={handleGenerateReferral}>
+							<FileText class="mr-2 size-4" />
+							Generate Referral
+						</DropdownMenu.Item>
+					</DropdownMenu.Content>
+				</DropdownMenu.Root>
 			</div>
 		</div>
 
@@ -407,3 +432,6 @@
 	studentId={student.studentId}
 	studentName="{student.firstName} {student.lastName}"
 />
+
+<!-- Medical Referral Modal -->
+<MedicalReferralModal bind:open={referralModalOpen} {student} visits={recentVisits} />
