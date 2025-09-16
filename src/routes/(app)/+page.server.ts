@@ -47,8 +47,6 @@ export const load: PageServerLoad = async () => {
 		)
 		.groupBy(clinicVisits.severity);
 
-	console.log(severityCounts);
-
 	// Get recent visits with student information
 	const recentVisits = await db
 		.select({
