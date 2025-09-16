@@ -20,7 +20,8 @@ export const load: PageServerLoad = async () => {
 		.where(
 			and(
 				baseCondition,
-				sql`strftime('%Y-%m', datetime(${clinicVisits.checkInTime} / 1000, 'unixepoch')) = strftime('%Y-%m', 'now')`
+				sql`date(${clinicVisits.checkInTime}, 'unixepoch') >= date('now', 'start of month') 
+				    AND date(${clinicVisits.checkInTime}, 'unixepoch') < date('now', 'start of month', '+1 month')`
 			)
 		);
 
@@ -28,12 +29,7 @@ export const load: PageServerLoad = async () => {
 	const [{ count: visitsThisDay }] = await db
 		.select({ count: count() })
 		.from(clinicVisits)
-		.where(
-			and(
-				baseCondition,
-				sql`strftime('%Y-%m-%d', datetime(${clinicVisits.checkInTime} / 1000, 'unixepoch')) = strftime('%Y-%m-%d', 'now')`
-			)
-		);
+		.where(and(baseCondition, sql`date(${clinicVisits.checkInTime}, 'unixepoch') = date('now')`));
 
 	// Get severity counts for this month
 	const severityCounts = await db
@@ -45,10 +41,13 @@ export const load: PageServerLoad = async () => {
 		.where(
 			and(
 				baseCondition,
-				sql`strftime('%Y-%m', datetime(${clinicVisits.checkInTime} / 1000, 'unixepoch')) = strftime('%Y-%m', 'now')`
+				sql`date(${clinicVisits.checkInTime}, 'unixepoch') >= date('now', 'start of month') 
+				    AND date(${clinicVisits.checkInTime}, 'unixepoch') < date('now', 'start of month', '+1 month')`
 			)
 		)
 		.groupBy(clinicVisits.severity);
+
+	console.log(severityCounts);
 
 	// Get recent visits with student information
 	const recentVisits = await db

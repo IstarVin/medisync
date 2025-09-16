@@ -248,7 +248,7 @@
 								</div>
 								{#if visit.medicationGiven}
 									<ul class="list-inside list-disc space-y-1">
-										{#each visit.medicationGiven.split(',') as medication}
+										{#each visit.medicationGiven.split(/[\n,]+/) as medication}
 											<li class="text-sm text-gray-900 dark:text-white">{medication.trim()}</li>
 										{/each}
 									</ul>

@@ -552,5 +552,133 @@ School Health Office
 				error: 'Failed to send email. Please try again.'
 			});
 		}
+	},
+
+	sendReferralEmail: async ({ request, params }) => {
+		try {
+			const formData = await request.formData();
+			const studentId = params.id;
+
+			// Extract form data
+			const emailData = {
+				studentId: formData.get('studentId') as string,
+				recipientEmail: formData.get('recipientEmail') as string,
+				subject: formData.get('subject') as string,
+				message: formData.get('message') as string,
+				// Referral data
+				referralTo: formData.get('referralTo') as string,
+				referralAddress: formData.get('referralAddress') as string,
+				referralDate: formData.get('referralDate') as string,
+				chiefComplaint: formData.get('chiefComplaint') as string,
+				impression: formData.get('impression') as string,
+				remarks: formData.get('remarks') as string,
+				referringPersonName: formData.get('referringPersonName') as string,
+				referringPersonDesignation: formData.get('referringPersonDesignation') as string
+			};
+
+			// Validate required fields
+			if (!emailData.recipientEmail || !emailData.subject || !emailData.message) {
+				return fail(400, {
+					error: 'All email fields are required'
+				});
+			}
+
+			// Validate email format
+			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+			if (!emailRegex.test(emailData.recipientEmail)) {
+				return fail(400, {
+					error: 'Invalid email address format'
+				});
+			}
+
+			// Get student information
+			const [student] = await db
+				.select({
+					id: students.id,
+					studentId: students.studentId,
+					firstName: students.firstName,
+					lastName: students.lastName,
+					dateOfBirth: students.dateOfBirth,
+					gender: students.gender,
+					grade: students.grade,
+					section: students.section,
+					address: students.address
+				})
+				.from(students)
+				.where(eq(students.studentId, studentId))
+				.limit(1);
+
+			if (!student) {
+				return fail(400, {
+					error: 'Student not found'
+				});
+			}
+
+			// Calculate student age
+			const today = new Date();
+			const birthDate = new Date(student.dateOfBirth);
+			let age = today.getFullYear() - birthDate.getFullYear();
+			const monthDiff = today.getMonth() - birthDate.getMonth();
+			if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+				age--;
+			}
+
+			// Create email content with referral information
+			// In a production environment, you would generate an actual PDF attachment
+			const emailContent = `
+${emailData.message}
+
+---
+
+MEDICAL REFERRAL FORM (SHD Form 3A)
+=====================================
+
+To: ${emailData.referralTo}
+Address/Agency: ${emailData.referralAddress}
+Date: ${emailData.referralDate}
+
+PATIENT INFORMATION
+-------------------
+Name: ${student.firstName} ${student.lastName}
+Age: ${age} years old
+Student ID: ${student.studentId}
+Grade/Section: ${student.grade}${student.section ? ` (${student.section})` : ''}
+Gender: ${student.gender}
+${student.address ? `Address: ${student.address}` : ''}
+
+CHIEF COMPLAINT/HISTORY
+-----------------------
+${emailData.chiefComplaint}
+
+IMPRESSION/DIAGNOSIS
+--------------------
+${emailData.impression}
+
+REMARKS
+-------
+${emailData.remarks}
+
+REFERRING PERSON
+----------------
+Name: ${emailData.referringPersonName}
+Designation: ${emailData.referringPersonDesignation}
+
+---
+This medical referral was sent from CareLog School Health Management System.
+			`.trim();
+
+			// Send the email with referral content
+			await sendMailMessage(emailData.recipientEmail, emailContent, emailData.subject);
+
+			return {
+				success: true,
+				message: `Medical referral sent successfully to ${emailData.recipientEmail}`
+			};
+		} catch (error) {
+			console.error('Error sending referral email:', error);
+			return fail(500, {
+				error: 'Failed to send referral email. Please try again.'
+			});
+		}
 	}
 };

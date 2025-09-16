@@ -8,6 +8,7 @@
 	import { toTitleCase } from '$lib/utils.js';
 	import { FileText, Printer } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import PdfEmailModal from './pdf-email-modal.svelte';
 
 	// Types
 	interface Student {
@@ -48,6 +49,9 @@
 		student: Student;
 		visits: Visit[];
 	} = $props();
+
+	// Email modal state
+	let emailModalOpen = $state(false);
 
 	// Form data
 	let formData = $state({
@@ -177,23 +181,66 @@
 		resetForm();
 	}
 
+	function handleEmailReferral() {
+		// Validate required fields first
+		if (!formData.to.trim()) {
+			toast.error('Validation Error', {
+				description: 'Please specify who the referral is addressed to.'
+			});
+			return;
+		}
+
+		if (!formData.address.trim()) {
+			toast.error('Validation Error', {
+				description: 'Please provide the address/agency.'
+			});
+			return;
+		}
+
+		if (!formData.chiefComplaint.trim()) {
+			toast.error('Validation Error', {
+				description: 'Please provide the chief complaint.'
+			});
+			return;
+		}
+
+		if (!formData.referringPersonName.trim()) {
+			toast.error('Validation Error', {
+				description: "Please provide the referring person's name."
+			});
+			return;
+		}
+
+		// Open email modal
+		emailModalOpen = true;
+	}
+
 	function generateReferralHtml(): string {
 		const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Medical Referral Form - SHD Form 3A</title>
+	<title>Medical Referral Form - SHD Form 3A - ${student.firstName} ${student.lastName}</title>
 	<script src="https://cdn.tailwindcss.com"><\/script>
 	<style>
 		@media print {
 			.no-print { display: none !important; }
 			body { font-size: 12px; }
+			@page {
+				margin: 0;
+				padding: 0;
+				size: A4;
+			}
+			.page-break {
+				page-break-before: always;
+			}
 		}
 	</style>
 </head>
-<body class="bg-gray-100 p-5">
-	<div class="mx-auto max-w-4xl bg-white p-8 font-sans text-sm shadow-lg">
+<body>
+	<!-- Page 1: Referral Form -->
+	<div class="mx-auto max-w-4xl bg-white p-8 font-sans text-sm">
 		<div class="mb-4 text-right no-print">
 			<button onclick="window.print()" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
 				Print Form
@@ -242,7 +289,7 @@
 			<div class="mb-3">Chief Complaint:</div>
 			<div class="space-y-1">
 				${formData.chiefComplaint
-					.split('\\n')
+					.split('\n')
 					.map(
 						(line: string) => `<div class="border-b border-black pb-1 px-2 min-h-5">${line}</div>`
 					)
@@ -257,7 +304,7 @@
 			<div class="mb-3">Remarks:</div>
 			<div class="space-y-1">
 				${formData.remarks
-					.split('\\n')
+					.split('\n')
 					.map(
 						(line: string) => `<div class="border-b border-black pb-1 px-2 min-h-5">${line}</div>`
 					)
@@ -273,47 +320,49 @@
 				<div class="text-xs">Designation</div>
 			</div>
 		</div>
-		<div class="my-8 border-t border-b border-dashed border-black py-3 text-center text-xs font-bold">
-			Note: To be detached from upper portion and sent back to the school.
+	</div>
+
+	<!-- Page 2: Return Slip -->
+	<div class="page-break mx-auto max-w-4xl bg-white p-8 font-sans text-sm">
+		<div class="mb-8 text-left">
+			<div class="mb-10 text-xs">SHD Form 3A - Return Slip</div>
 		</div>
 		<div class="mb-8 text-center">
 			<div class="mx-auto mb-1 h-6 w-72 border-b border-black"></div>
 			<div class="text-xs">Name of Institution</div>
 		</div>
-		<div class="border-black pt-5">
-			<div class="mb-8 text-center text-sm font-bold">Medical Treatment Return Slip</div>
-			<div class="space-y-4 text-xs">
-				<div class="flex items-baseline">
-					<span class="mr-3 min-w-32">Returned to</span>
-					<div class="flex-1 border-b border-black pb-1 px-2">Tupi National High School</div>
-				</div>
-				<div class="flex items-baseline">
-					<span class="mr-3 min-w-32">Name of Patient</span>
-					<div class="flex-1 border-b border-black pb-1 px-2">${student.firstName} ${student.lastName}</div>
-					<span class="mx-8">Date Referred</span>
-					<div class="w-36 border-b border-black pb-1 px-2">${new Date(formData.date).toLocaleDateString()}</div>
-				</div>
-				<div class="flex items-baseline">
-					<span class="mr-3 min-w-32">Chief Complaint</span>
-					<div class="flex-1 border-b border-black pb-1"></div>
-				</div>
-				<div class="flex items-baseline">
-					<span class="mr-3 min-w-32">Findings</span>
-					<div class="flex-1 border-b border-black pb-1"></div>
-				</div>
-				<div class="flex items-baseline">
-					<span class="mr-3 min-w-40">Action/Recommendations</span>
-					<div class="flex-1 border-b border-black pb-1"></div>
-				</div>
+		<div class="mb-8 text-center text-sm font-bold">Medical Treatment Return Slip</div>
+		<div class="space-y-4 text-xs">
+			<div class="flex items-baseline">
+				<span class="mr-3 min-w-32">Returned to</span>
+				<div class="flex-1 border-b border-black pb-1 px-2">Tupi National High School</div>
 			</div>
-			<div class="mt-10 flex justify-between">
-				<div class="w-36 text-center">
-					<div class="w-full border-t border-black pt-1.5 text-xs">Date</div>
-				</div>
-				<div class="flex w-56 flex-col gap-6 text-center">
-					<div class="w-full border-t border-black pt-1.5 text-xs">Name & Signature</div>
-					<div class="w-full border-t border-black pt-1.5 text-xs">Designation</div>
-				</div>
+			<div class="flex items-baseline">
+				<span class="mr-3 min-w-32">Name of Patient</span>
+				<div class="flex-1 border-b border-black pb-1 px-2">${student.firstName} ${student.lastName}</div>
+				<span class="mx-8">Date Referred</span>
+				<div class="w-36 border-b border-black pb-1 px-2">${new Date(formData.date).toLocaleDateString()}</div>
+			</div>
+			<div class="flex items-baseline">
+				<span class="mr-3 min-w-32">Chief Complaint</span>
+				<div class="flex-1 border-b border-black pb-1"></div>
+			</div>
+			<div class="flex items-baseline">
+				<span class="mr-3 min-w-32">Findings</span>
+				<div class="flex-1 border-b border-black pb-1"></div>
+			</div>
+			<div class="flex items-baseline">
+				<span class="mr-3 min-w-40">Action/Recommendations</span>
+				<div class="flex-1 border-b border-black pb-1"></div>
+			</div>
+		</div>
+		<div class="mt-10 flex justify-between">
+			<div class="w-36 text-center">
+				<div class="w-full border-t border-black pt-1.5 text-xs">Date</div>
+			</div>
+			<div class="flex w-56 flex-col gap-6 text-center">
+				<div class="w-full border-t border-black pt-1.5 text-xs">Name & Signature</div>
+				<div class="w-full border-t border-black pt-1.5 text-xs">Designation</div>
 			</div>
 		</div>
 	</div>
@@ -347,7 +396,7 @@
 </script>
 
 <Dialog.Root {open} onOpenChange={handleOpenChange}>
-	<Dialog.Content class="max-h-[90vh] max-w-4xl overflow-y-auto">
+	<Dialog.Content class="max-h-[90vh] max-w-3xl! overflow-y-auto">
 		<Dialog.Header>
 			<Dialog.Title class="flex items-center gap-2">
 				<FileText class="size-5" />
@@ -524,6 +573,10 @@
 			<!-- Form Actions -->
 			<Dialog.Footer>
 				<Button type="button" variant="outline" onclick={() => (open = false)}>Cancel</Button>
+				<!-- <Button type="button" variant="outline" onclick={handleEmailReferral}>
+					<Mail class="mr-2 size-4" />
+					Email Referral
+				</Button> -->
 				<Button type="submit">
 					<Printer class="mr-2 size-4" />
 					Generate Referral Form
@@ -532,3 +585,6 @@
 		</form>
 	</Dialog.Content>
 </Dialog.Root>
+
+<!-- PDF Email Modal for sending referral via email -->
+<PdfEmailModal bind:open={emailModalOpen} {student} referralData={formData} />

@@ -20,7 +20,9 @@ export async function sendMailMessage(
 	const newMail = new MailService()
 		.from({ email: env.SMTP2GO_SENDER_EMAIL, name: 'CareLog Health Office' })
 		.to({ email })
-		.subject(subject).html(`
+		.subject(subject)
+		.html(
+			`
 			<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
 				<div style="background-color: #f8f9fa; padding: 20px; text-align: center; border-bottom: 1px solid #dee2e6;">
 					<h2 style="color: #2c3e50; margin: 0;">CareLog Health Office</h2>
@@ -33,8 +35,23 @@ export async function sendMailMessage(
 					<p style="margin: 5px 0 0 0;">Please contact the school if you have any questions or concerns.</p>
 				</div>
 			</div>
-		`);
+		`
+		);
 
 	await api.consume(newMail);
 	console.log('Email sent to', email);
 }
+
+// export async function sendEmailReferral(
+// 	email: string,
+// 	subject: string,
+// 	message: string,
+// 	attachments: AttachmentCollection
+// ) {
+// 	const newEmail = new MailService()
+// 		.from({
+// 			email: env.SMTP2GO_SENDER_EMAIL,
+// 			name: 'CareLog Health Office'
+// 		})
+// 		.to({ email }).attach({filename: ""});
+// }

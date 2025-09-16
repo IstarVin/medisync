@@ -13,8 +13,10 @@
 
 	let showQrScanner = $state(false);
 
+	$inspect(data.severityCounts);
+
 	// Process severity counts for display
-	const severityStats = $derived(() => {
+	const severityStats = $derived.by(() => {
 		const stats = { low: 0, medium: 0, high: 0, critical: 0 };
 		data.severityCounts.forEach((item: { severity: string; count: number }) => {
 			if (item.severity in stats) {
@@ -121,11 +123,11 @@
 			</h2>
 			<div class="flex flex-wrap gap-4 text-sm">
 				<!-- Medium Cases -->
-				{#if severityStats().medium > 0}
+				{#if severityStats.medium > 0}
 					<div class="flex items-center gap-2">
 						<Circle class="h-3 w-3 fill-yellow-500 text-yellow-500" />
 						<span class="text-foreground">
-							<strong>{severityStats().medium}</strong> Medium case{severityStats().medium !== 1
+							<strong>{severityStats.medium}</strong> Medium case{severityStats.medium !== 1
 								? 's'
 								: ''}
 						</span>
@@ -133,24 +135,21 @@
 				{/if}
 
 				<!-- High Cases -->
-				{#if severityStats().high > 0}
+				{#if severityStats.high > 0}
 					<div class="flex items-center gap-2">
 						<AlertTriangle class="h-3 w-3 fill-orange-500 text-orange-500" />
 						<span class="text-foreground">
-							<strong>{severityStats().high}</strong> High case{severityStats().high !== 1
-								? 's'
-								: ''}
+							<strong>{severityStats.high}</strong> High case{severityStats.high !== 1 ? 's' : ''}
 						</span>
 					</div>
 				{/if}
 
 				<!-- Critical Cases -->
-				{#if severityStats().critical > 0}
+				{#if severityStats.critical > 0}
 					<div class="flex items-center gap-2">
 						<AlertTriangle class="h-3 w-3 fill-red-500 text-red-500" />
 						<span class="text-foreground">
-							<strong>{severityStats().critical}</strong> Critical case{severityStats().critical !==
-							1
+							<strong>{severityStats.critical}</strong> Critical case{severityStats.critical !== 1
 								? 's'
 								: ''}
 						</span>
@@ -158,7 +157,7 @@
 				{/if}
 
 				<!-- No urgent cases message -->
-				{#if severityStats().medium === 0 && severityStats().high === 0 && severityStats().critical === 0}
+				{#if severityStats.medium === 0 && severityStats.high === 0 && severityStats.critical === 0}
 					<div class="flex items-center gap-2 text-muted-foreground">
 						<Circle class="h-3 w-3 fill-green-500 text-green-500" />
 						<span>No medium, high, or critical cases this month</span>

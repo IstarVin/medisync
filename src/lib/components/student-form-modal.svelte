@@ -248,10 +248,10 @@
 			address: studentData.address || '',
 			profileUrl: studentData.profileUrl || '',
 			chronicHealthConditions: Array.isArray(studentData.chronicHealthConditions)
-				? studentData.chronicHealthConditions.join(', ')
+				? studentData.chronicHealthConditions.join('\n')
 				: '',
 			currentMedications: Array.isArray(studentData.currentMedications)
-				? studentData.currentMedications.join(', ')
+				? studentData.currentMedications.join('\n')
 				: '',
 			healthHistory: studentData.healthHistory || '',
 			doctorId: studentData.doctorId || ''
