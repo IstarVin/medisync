@@ -2,7 +2,6 @@ import { building } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import SMTP2GO from 'smtp2go-nodejs';
 import { generateSessionToken } from './auth';
-const { ApiClient, MailService } = SMTP2GO;
 
 export const MAIL_VERIFICATION_KEY = env.MAIL_VERIFICATION_KEY || generateSessionToken();
 
@@ -10,14 +9,14 @@ if ((!env.SMTP2GO_API_KEY || !env.SMTP2GO_SENDER_EMAIL) && !building) {
 	throw 'SMTP2GO API KEY and SENDER EMAIL needed';
 }
 
-const api = new ApiClient(env.SMTP2GO_API_KEY);
+const api = new SMTP2GO.ApiClient(env.SMTP2GO_API_KEY);
 
 export async function sendMailMessage(
 	email: string,
 	message: string,
 	subject: string = 'Important Notification from CareLog'
 ) {
-	const newMail = new MailService()
+	const newMail = new SMTP2GO.MailService()
 		.from({ email: env.SMTP2GO_SENDER_EMAIL, name: 'CareLog Health Office' })
 		.to({ email })
 		.subject(subject)

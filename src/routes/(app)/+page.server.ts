@@ -1,81 +1,103 @@
-import { db } from '$lib/server/db';
-import { clinicVisits, students } from '$lib/server/db/schema';
-import { and, count, desc, eq, ne, sql } from 'drizzle-orm';
+import type { IStudent } from '$lib/server/db';
+import { ClinicVisit, db } from '$lib/server/db';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-	// Base query for non-cancelled visits
-	const baseCondition = ne(clinicVisits.status, 'cancelled');
+	// Ensure DB connection
+	await db;
+
+	// Base condition for non-cancelled visits
+	const baseCondition = { status: { $ne: 'cancelled' } };
 
 	// Get total visits count
-	const [{ count: totalVisits }] = await db
-		.select({ count: count() })
-		.from(clinicVisits)
-		.where(baseCondition);
+	const totalVisits = await ClinicVisit.countDocuments(baseCondition);
+
+	// Get start and end of current month
+	const now = new Date();
+	const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+	const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+	// Get start and end of today
+	const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	const startOfNextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
 
 	// Get visits this month count
-	const [{ count: visitsThisMonth }] = await db
-		.select({ count: count() })
-		.from(clinicVisits)
-		.where(
-			and(
-				baseCondition,
-				sql`date(${clinicVisits.checkInTime}, 'unixepoch') >= date('now', 'start of month') 
-				    AND date(${clinicVisits.checkInTime}, 'unixepoch') < date('now', 'start of month', '+1 month')`
-			)
-		);
+	const visitsThisMonth = await ClinicVisit.countDocuments({
+		...baseCondition,
+		checkInTime: {
+			$gte: startOfMonth,
+			$lt: startOfNextMonth
+		}
+	});
 
 	// Get visits today count
-	const [{ count: visitsThisDay }] = await db
-		.select({ count: count() })
-		.from(clinicVisits)
-		.where(and(baseCondition, sql`date(${clinicVisits.checkInTime}, 'unixepoch') = date('now')`));
+	const visitsThisDay = await ClinicVisit.countDocuments({
+		...baseCondition,
+		checkInTime: {
+			$gte: startOfDay,
+			$lt: startOfNextDay
+		}
+	});
 
-	// Get severity counts for this month
-	const severityCounts = await db
-		.select({
-			severity: clinicVisits.severity,
-			count: count()
-		})
-		.from(clinicVisits)
-		.where(
-			and(
-				baseCondition,
-				sql`date(${clinicVisits.checkInTime}, 'unixepoch') >= date('now', 'start of month') 
-				    AND date(${clinicVisits.checkInTime}, 'unixepoch') < date('now', 'start of month', '+1 month')`
-			)
-		)
-		.groupBy(clinicVisits.severity);
+	// Get severity counts for this month using aggregation
+	const severityCountsResult = await ClinicVisit.aggregate([
+		{
+			$match: {
+				...baseCondition,
+				checkInTime: {
+					$gte: startOfMonth,
+					$lt: startOfNextMonth
+				}
+			}
+		},
+		{
+			$group: {
+				_id: '$severity',
+				count: { $sum: 1 }
+			}
+		}
+	]);
+
+	// Format severity counts to match expected structure
+	const severityCounts = severityCountsResult.map((item) => ({
+		severity: item._id,
+		count: item.count
+	}));
 
 	// Get recent visits with student information
-	const recentVisits = await db
-		.select({
-			id: clinicVisits.id,
-			visitNumber: clinicVisits.visitNumber,
-			checkInTime: clinicVisits.checkInTime,
-			checkOutTime: clinicVisits.checkOutTime,
-			visitType: clinicVisits.visitType,
-			status: clinicVisits.status,
-			severity: clinicVisits.severity,
-			chiefComplaint: clinicVisits.chiefComplaint,
-			isEmergency: clinicVisits.isEmergency,
-			student: {
-				id: students.id,
-				studentId: students.studentId,
-				firstName: students.firstName,
-				lastName: students.lastName,
-				grade: students.grade,
-				section: students.section
-			}
-		})
-		.from(clinicVisits)
-		.innerJoin(students, eq(clinicVisits.studentId, students.id))
-		.where(baseCondition)
-		.orderBy(desc(clinicVisits.checkInTime))
+	const recentVisits = await ClinicVisit.find(baseCondition)
+		.populate('studentId', 'studentId firstName lastName grade section')
+		.sort({ checkInTime: -1 })
 		.limit(10);
 
+	// Format recent visits to match expected structure
+	const formattedRecentVisits = recentVisits.map((visit) => {
+		const student = visit.studentId as IStudent;
+		return {
+			id: visit._id.toString(),
+			visitNumber: visit.visitNumber,
+			checkInTime: visit.checkInTime,
+			checkOutTime: visit.checkOutTime,
+			visitType: visit.visitType,
+			status: visit.status,
+			severity: visit.severity,
+			chiefComplaint: visit.chiefComplaint,
+			isEmergency: visit.isEmergency,
+			student: student
+				? {
+						id: student._id.toString(),
+						studentId: student.studentId,
+						firstName: student.firstName,
+						lastName: student.lastName,
+						grade: student.grade,
+						section: student.section ?? null
+					}
+				: null
+		};
+	});
+
 	return {
-		recentVisits,
+		recentVisits: formattedRecentVisits,
 		visitsThisDay,
 		visitsThisMonth,
 		totalVisits,

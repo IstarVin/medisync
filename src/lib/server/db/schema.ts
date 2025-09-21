@@ -1,5 +1,4 @@
-import { relations } from 'drizzle-orm';
-import { index, integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import mongoose, { Document, Schema, Types } from 'mongoose';
 
 export type VitalSigns = {
 	temperature: number;
@@ -15,7 +14,7 @@ export type VitalSigns = {
 	notes?: string;
 };
 
-// Enums for better type safety (as constants since SQLite doesn't have native enums)
+// Enums for better type safety
 export const USER_ROLES = ['admin', 'nurse', 'doctor', 'staff'] as const;
 export const GENDERS = ['male', 'female', 'other', 'prefer_not_to_say'] as const;
 export const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'unknown'] as const;
@@ -49,307 +48,366 @@ export type Severity = (typeof SEVERITIES)[number];
 export type Relationship = (typeof RELATIONSHIPS)[number];
 export type NotificationStatus = (typeof NOTIFICATION_STATUSES)[number];
 
-// Users table (for staff - nurses, doctors, admins)
-export const users = sqliteTable('users', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	email: text('email').notNull().unique(),
-	passwordHash: text('password_hash').notNull(),
-	firstName: text('first_name').notNull(),
-	lastName: text('last_name').notNull(),
-	role: text('role').$type<UserRole>().notNull().default('nurse'),
-	phoneNumber: text('phone_number'),
-	profileUrl: text('profile_url'),
-	isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-	lastLogin: integer('last_login', { mode: 'timestamp' }),
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date())
-});
+// Interface definitions for TypeScript types
+export interface IUser extends Document {
+	_id: Types.ObjectId;
+	email: string;
+	passwordHash: string;
+	firstName: string;
+	lastName: string;
+	role: UserRole;
+	phoneNumber?: string;
+	profileUrl?: string;
+	isActive: boolean;
+	lastLogin?: Date;
+	createdAt: Date;
+	updatedAt: Date;
+}
 
-export const session = sqliteTable(
-	'user_session',
+export interface ISession extends Document {
+	_id: string;
+	userId: Types.ObjectId;
+	expiresAt: Date;
+}
+
+export interface IStudent extends Document {
+	_id: Types.ObjectId;
+	studentId: string;
+	qrCodeId?: string;
+	firstName: string;
+	lastName: string;
+	middleName?: string;
+	email?: string;
+	dateOfBirth: Date;
+	gender: Gender;
+	grade: string;
+	section?: string;
+	address?: string;
+	chronicHealthConditions: string[];
+	currentMedications: string[];
+	doctorId?: Types.ObjectId;
+	healthHistory?: string;
+	enrollmentDate: Date;
+	isActive: boolean;
+	profileUrl?: string;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+export interface IEmergencyContact extends Document {
+	_id: Types.ObjectId;
+	studentId: Types.ObjectId;
+	name: string;
+	relationship: Relationship;
+	phoneNumber: string;
+	alternatePhone?: string;
+	email?: string;
+	address?: string;
+	isPrimary: boolean;
+	priority: number;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+export interface IClinicVisit extends Document {
+	_id: Types.ObjectId;
+	visitNumber: number;
+	studentId: Types.ObjectId;
+	attendedById: Types.ObjectId;
+	visitType: VisitType;
+	status: VisitStatus;
+	severity: Severity;
+	checkInTime: Date;
+	checkOutTime?: Date;
+	chiefComplaint: string;
+	symptoms?: string;
+	vitalSigns?: VitalSigns;
+	diagnosis?: string;
+	treatment?: string;
+	medicationGiven?: string;
+	instructions?: string;
+	followUpRequired: boolean;
+	followUpDate?: Date;
+	notes?: string;
+	isEmergency: boolean;
+	parentNotified: boolean;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+export interface IVisitAttachment extends Document {
+	_id: Types.ObjectId;
+	visitId: Types.ObjectId;
+	fileName: string;
+	fileUrl: string;
+	fileType: string;
+	fileSize?: number;
+	description?: string;
+	uploadedById: Types.ObjectId;
+	createdAt: Date;
+}
+
+export interface INotification extends Document {
+	_id: Types.ObjectId;
+	visitId?: Types.ObjectId;
+	recipientType: string;
+	recipientId?: string;
+	recipientName: string;
+	recipientContact: string;
+	notificationType: string;
+	subject?: string;
+	message: string;
+	status: NotificationStatus;
+	sentAt?: Date;
+	errorMessage?: string;
+	retryCount: number;
+	createdAt: Date;
+}
+
+export interface IQrCodeLog extends Document {
+	_id: Types.ObjectId;
+	qrCodeId: string;
+	studentId?: Types.ObjectId;
+	scannedAt: Date;
+	scanLocation?: string;
+	wasSuccessful: boolean;
+	errorMessage?: string;
+}
+
+export interface ISystemSetting extends Document {
+	_id: Types.ObjectId;
+	settingKey: string;
+	settingValue?: string;
+	description?: string;
+	isActive: boolean;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+export interface IAuditLog extends Document {
+	_id: Types.ObjectId;
+	userId?: Types.ObjectId;
+	action: string;
+	tableName?: string;
+	recordId?: string;
+	oldValues?: Record<string, unknown>;
+	newValues?: Record<string, unknown>;
+	ipAddress?: string;
+	userAgent?: string;
+	createdAt: Date;
+}
+
+// Mongoose Schemas
+const UserSchema = new Schema<IUser>(
 	{
-		id: text('id').primaryKey(),
-		userId: text('user_id')
-			.notNull()
-			.references(() => users.id),
-		expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull()
+		email: { type: String, required: true, unique: true },
+		passwordHash: { type: String, required: true },
+		firstName: { type: String, required: true },
+		lastName: { type: String, required: true },
+		role: { type: String, enum: USER_ROLES, default: 'nurse', required: true },
+		phoneNumber: String,
+		profileUrl: String,
+		isActive: { type: Boolean, default: true, required: true },
+		lastLogin: Date
 	},
-	(t) => [index('idx_usersession_user_id').on(t.userId)]
+	{
+		timestamps: true
+	}
 );
 
-// Students table
-export const students = sqliteTable('students', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	studentId: text('student_id').notNull().unique(), // School ID number
-	qrCodeId: text('qr_code_id').unique(), // QR code identifier
-	firstName: text('first_name').notNull(),
-	lastName: text('last_name').notNull(),
-	middleName: text('middle_name'),
-	email: text('email').unique(),
-	dateOfBirth: integer('date_of_birth', { mode: 'timestamp' }).notNull(),
-	gender: text('gender').$type<Gender>().notNull(),
-	grade: text('grade').notNull(),
-	section: text('section'),
-	address: text('address'),
+const SessionSchema = new Schema<ISession>(
+	{
+		_id: { type: String, required: true },
+		userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+		expiresAt: { type: Date, required: true }
+	},
+	{
+		_id: false
+	}
+);
 
-	// Simple medical information (as shown in the image)
-	chronicHealthConditions: text('chronic_health_conditions', { mode: 'json' })
-		.$type<string[]>()
-		.notNull()
-		.default([]),
-	currentMedications: text('current_medications', { mode: 'json' })
-		.$type<string[]>()
-		.notNull()
-		.default([]),
-	doctorId: text('doctor_id').references(() => users.id), // Reference to assigned doctor in users table
-	healthHistory: text('health_history'), // e.g., "I have allergies to pollen, dust, and pet fur..."
+SessionSchema.index({ userId: 1 });
 
-	enrollmentDate: integer('enrollment_date', { mode: 'timestamp' }).notNull(),
-	isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-	profileUrl: text('profile_url'),
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date())
+const StudentSchema = new Schema<IStudent>(
+	{
+		studentId: { type: String, required: true, unique: true },
+		qrCodeId: { type: String, unique: true, sparse: true },
+		firstName: { type: String, required: true },
+		lastName: { type: String, required: true },
+		middleName: String,
+		email: { type: String, unique: true, sparse: true },
+		dateOfBirth: { type: Date, required: true },
+		gender: { type: String, enum: GENDERS, required: true },
+		grade: { type: String, required: true },
+		section: String,
+		address: String,
+		chronicHealthConditions: { type: [String], default: [] },
+		currentMedications: { type: [String], default: [] },
+		doctorId: { type: Schema.Types.ObjectId, ref: 'User' },
+		healthHistory: String,
+		enrollmentDate: { type: Date, required: true },
+		isActive: { type: Boolean, default: true, required: true },
+		profileUrl: String
+	},
+	{
+		timestamps: true
+	}
+);
+
+const EmergencyContactSchema = new Schema<IEmergencyContact>(
+	{
+		studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true },
+		name: { type: String, required: true },
+		relationship: { type: String, enum: RELATIONSHIPS, required: true },
+		phoneNumber: { type: String, required: true },
+		alternatePhone: String,
+		email: String,
+		address: String,
+		isPrimary: { type: Boolean, default: false, required: true },
+		priority: { type: Number, default: 1, required: true }
+	},
+	{
+		timestamps: true
+	}
+);
+
+const ClinicVisitSchema = new Schema<IClinicVisit>(
+	{
+		visitNumber: { type: Number, unique: true },
+		studentId: { type: Schema.Types.ObjectId, ref: 'Student', required: true },
+		attendedById: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+		visitType: { type: String, enum: VISIT_TYPES, required: true },
+		status: { type: String, enum: VISIT_STATUSES, default: 'active', required: true },
+		severity: { type: String, enum: SEVERITIES, default: 'low', required: true },
+		checkInTime: { type: Date, default: Date.now, required: true },
+		checkOutTime: Date,
+		chiefComplaint: { type: String, required: true },
+		symptoms: String,
+		vitalSigns: Schema.Types.Mixed,
+		diagnosis: String,
+		treatment: String,
+		medicationGiven: String,
+		instructions: String,
+		followUpRequired: { type: Boolean, default: false, required: true },
+		followUpDate: Date,
+		notes: String,
+		isEmergency: { type: Boolean, default: false, required: true },
+		parentNotified: { type: Boolean, default: false, required: true }
+	},
+	{
+		timestamps: true
+	}
+);
+
+// Auto-increment visitNumber
+ClinicVisitSchema.pre('save', async function () {
+	if (this.isNew && !this.visitNumber) {
+		const lastVisit = await mongoose.model('ClinicVisit').findOne().sort({ visitNumber: -1 });
+		this.visitNumber = (lastVisit?.visitNumber || 0) + 1;
+	}
 });
 
-// Emergency contacts
-export const emergencyContacts = sqliteTable('emergency_contacts', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	studentId: text('student_id')
-		.references(() => students.id, { onDelete: 'cascade' })
-		.notNull(),
-	name: text('name').notNull(),
-	relationship: text('relationship').$type<Relationship>().notNull(),
-	phoneNumber: text('phone_number').notNull(),
-	alternatePhone: text('alternate_phone'),
-	email: text('email'),
-	address: text('address'),
-	isPrimary: integer('is_primary', { mode: 'boolean' }).notNull().default(false),
-	priority: integer('priority').notNull().default(1), // 1 = highest priority
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date())
-});
+const VisitAttachmentSchema = new Schema<IVisitAttachment>(
+	{
+		visitId: { type: Schema.Types.ObjectId, ref: 'ClinicVisit', required: true },
+		fileName: { type: String, required: true },
+		fileUrl: { type: String, required: true },
+		fileType: { type: String, required: true },
+		fileSize: Number,
+		description: String,
+		uploadedById: { type: Schema.Types.ObjectId, ref: 'User', required: true }
+	},
+	{
+		timestamps: { createdAt: true, updatedAt: false }
+	}
+);
 
-// Clinic visits
-// Clinic visits with proper auto-increment
-export const clinicVisits = sqliteTable('clinic_visits', {
-	visitNumber: integer('visit_number').primaryKey({ autoIncrement: true }), // Auto-incrementing visit number
-	id: text('id')
-		.notNull()
-		.unique()
-		.$defaultFn(() => crypto.randomUUID()),
-	studentId: text('student_id')
-		.references(() => students.id, { onDelete: 'cascade' })
-		.notNull(),
-	attendedById: text('attended_by_id')
-		.references(() => users.id)
-		.notNull(),
-	visitType: text('visit_type').$type<VisitType>().notNull(),
-	status: text('status').$type<VisitStatus>().notNull().default('active'),
-	severity: text('severity').$type<Severity>().notNull().default('low'),
-	checkInTime: integer('check_in_time', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date()),
-	checkOutTime: integer('check_out_time', { mode: 'timestamp' }),
-	chiefComplaint: text('chief_complaint').notNull(), // Main reason for visit
-	symptoms: text('symptoms'),
-	vitalSigns: text('vital_signs', { mode: 'json' }).$type<VitalSigns>(), // Store as JSON: temperature, blood pressure, pulse, etc.
-	diagnosis: text('diagnosis'),
-	treatment: text('treatment'),
-	medicationGiven: text('medication_given'),
-	instructions: text('instructions'),
-	followUpRequired: integer('follow_up_required', { mode: 'boolean' }).notNull().default(false),
-	followUpDate: integer('follow_up_date', { mode: 'timestamp' }),
-	notes: text('notes'),
-	isEmergency: integer('is_emergency', { mode: 'boolean' }).notNull().default(false),
-	parentNotified: integer('parent_notified', { mode: 'boolean' }).notNull().default(false),
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date())
-});
+const NotificationSchema = new Schema<INotification>(
+	{
+		visitId: { type: Schema.Types.ObjectId, ref: 'ClinicVisit' },
+		recipientType: { type: String, required: true },
+		recipientId: String,
+		recipientName: { type: String, required: true },
+		recipientContact: { type: String, required: true },
+		notificationType: { type: String, required: true },
+		subject: String,
+		message: { type: String, required: true },
+		status: { type: String, enum: NOTIFICATION_STATUSES, default: 'pending', required: true },
+		sentAt: Date,
+		errorMessage: String,
+		retryCount: { type: Number, default: 0, required: true }
+	},
+	{
+		timestamps: { createdAt: true, updatedAt: false }
+	}
+);
 
-// Visit attachments (photos, documents, etc.)
-export const visitAttachments = sqliteTable('visit_attachments', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	visitId: text('visit_id')
-		.references(() => clinicVisits.id, { onDelete: 'cascade' })
-		.notNull(),
-	fileName: text('file_name').notNull(),
-	fileUrl: text('file_url').notNull(),
-	fileType: text('file_type').notNull(), // image/jpeg, application/pdf, etc.
-	fileSize: integer('file_size'), // in bytes
-	description: text('description'),
-	uploadedById: text('uploaded_by_id')
-		.references(() => users.id)
-		.notNull(),
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date())
-});
+const QrCodeLogSchema = new Schema<IQrCodeLog>(
+	{
+		qrCodeId: { type: String, required: true },
+		studentId: { type: Schema.Types.ObjectId, ref: 'Student' },
+		scannedAt: { type: Date, default: Date.now, required: true },
+		scanLocation: String,
+		wasSuccessful: { type: Boolean, default: true, required: true },
+		errorMessage: String
+	},
+	{
+		timestamps: false
+	}
+);
 
-// Notifications (SMS/Email logs)
-export const notifications = sqliteTable('notifications', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	visitId: text('visit_id').references(() => clinicVisits.id, { onDelete: 'cascade' }),
-	recipientType: text('recipient_type').notNull(), // 'student', 'parent', 'emergency_contact'
-	recipientId: text('recipient_id'), // Could reference different tables based on type
-	recipientName: text('recipient_name').notNull(),
-	recipientContact: text('recipient_contact').notNull(), // phone or email
-	notificationType: text('notification_type').notNull(), // 'sms', 'email'
-	subject: text('subject'),
-	message: text('message').notNull(),
-	status: text('status').$type<NotificationStatus>().notNull().default('pending'),
-	sentAt: integer('sent_at', { mode: 'timestamp' }),
-	errorMessage: text('error_message'),
-	retryCount: integer('retry_count').notNull().default(0),
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date())
-});
+const SystemSettingSchema = new Schema<ISystemSetting>(
+	{
+		settingKey: { type: String, required: true, unique: true },
+		settingValue: String,
+		description: String,
+		isActive: { type: Boolean, default: true, required: true }
+	},
+	{
+		timestamps: true
+	}
+);
 
-// QR code scan logs for security and tracking
-export const qrCodeLogs = sqliteTable('qr_code_logs', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	qrCodeId: text('qr_code_id').notNull(),
-	studentId: text('student_id').references(() => students.id),
-	scannedAt: integer('scanned_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date()),
-	scanLocation: text('scan_location'), // e.g., "Clinic Entrance"
-	wasSuccessful: integer('was_successful', { mode: 'boolean' }).notNull().default(true),
-	errorMessage: text('error_message')
-});
+const AuditLogSchema = new Schema<IAuditLog>(
+	{
+		userId: { type: Schema.Types.ObjectId, ref: 'User' },
+		action: { type: String, required: true },
+		tableName: String,
+		recordId: String,
+		oldValues: Schema.Types.Mixed,
+		newValues: Schema.Types.Mixed,
+		ipAddress: String,
+		userAgent: String
+	},
+	{
+		timestamps: { createdAt: true, updatedAt: false }
+	}
+);
 
-// System settings
-export const systemSettings = sqliteTable('system_settings', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	settingKey: text('setting_key').notNull().unique(),
-	settingValue: text('setting_value'),
-	description: text('description'),
-	isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date()),
-	updatedAt: integer('updated_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date())
-});
+// Create and export models
+export const User = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
+export const Session =
+	mongoose.models.Session || mongoose.model<ISession>('Session', SessionSchema);
+export const Student =
+	mongoose.models.Student || mongoose.model<IStudent>('Student', StudentSchema);
+export const EmergencyContact =
+	mongoose.models.EmergencyContact ||
+	mongoose.model<IEmergencyContact>('EmergencyContact', EmergencyContactSchema);
+export const ClinicVisit =
+	mongoose.models.ClinicVisit || mongoose.model<IClinicVisit>('ClinicVisit', ClinicVisitSchema);
+export const VisitAttachment =
+	mongoose.models.VisitAttachment ||
+	mongoose.model<IVisitAttachment>('VisitAttachment', VisitAttachmentSchema);
+export const Notification =
+	mongoose.models.Notification || mongoose.model<INotification>('Notification', NotificationSchema);
+export const QrCodeLog =
+	mongoose.models.QrCodeLog || mongoose.model<IQrCodeLog>('QrCodeLog', QrCodeLogSchema);
+export const SystemSetting =
+	mongoose.models.SystemSetting ||
+	mongoose.model<ISystemSetting>('SystemSetting', SystemSettingSchema);
+export const AuditLog =
+	mongoose.models.AuditLog || mongoose.model<IAuditLog>('AuditLog', AuditLogSchema);
 
-// Audit logs for security and compliance
-export const auditLogs = sqliteTable('audit_logs', {
-	id: text('id')
-		.primaryKey()
-		.$defaultFn(() => crypto.randomUUID()),
-	userId: text('user_id').references(() => users.id),
-	action: text('action').notNull(), // 'CREATE', 'UPDATE', 'DELETE', 'LOGIN', etc.
-	tableName: text('table_name'),
-	recordId: text('record_id'),
-	oldValues: text('old_values', { mode: 'json' }),
-	newValues: text('new_values', { mode: 'json' }),
-	ipAddress: text('ip_address'),
-	userAgent: text('user_agent'),
-	createdAt: integer('created_at', { mode: 'timestamp' })
-		.notNull()
-		.$defaultFn(() => new Date())
-});
-
-// Define relationships
-export const studentsRelations = relations(students, ({ one, many }) => ({
-	doctor: one(users, {
-		fields: [students.doctorId],
-		references: [users.id]
-	}),
-	emergencyContacts: many(emergencyContacts),
-	clinicVisits: many(clinicVisits),
-	qrCodeLogs: many(qrCodeLogs)
-}));
-
-export const usersRelations = relations(users, ({ many }) => ({
-	assignedStudents: many(students), // Students assigned to this doctor
-	clinicVisits: many(clinicVisits),
-	visitAttachments: many(visitAttachments),
-	auditLogs: many(auditLogs)
-}));
-
-export const clinicVisitsRelations = relations(clinicVisits, ({ one, many }) => ({
-	student: one(students, {
-		fields: [clinicVisits.studentId],
-		references: [students.id]
-	}),
-	attendedBy: one(users, {
-		fields: [clinicVisits.attendedById],
-		references: [users.id]
-	}),
-	attachments: many(visitAttachments),
-	notifications: many(notifications)
-}));
-
-export const emergencyContactsRelations = relations(emergencyContacts, ({ one }) => ({
-	student: one(students, {
-		fields: [emergencyContacts.studentId],
-		references: [students.id]
-	})
-}));
-
-export const visitAttachmentsRelations = relations(visitAttachments, ({ one }) => ({
-	visit: one(clinicVisits, {
-		fields: [visitAttachments.visitId],
-		references: [clinicVisits.id]
-	}),
-	uploadedBy: one(users, {
-		fields: [visitAttachments.uploadedById],
-		references: [users.id]
-	})
-}));
-
-export const notificationsRelations = relations(notifications, ({ one }) => ({
-	visit: one(clinicVisits, {
-		fields: [notifications.visitId],
-		references: [clinicVisits.id]
-	})
-}));
-
-export const qrCodeLogsRelations = relations(qrCodeLogs, ({ one }) => ({
-	student: one(students, {
-		fields: [qrCodeLogs.studentId],
-		references: [students.id]
-	})
-}));
-
-export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
-	user: one(users, {
-		fields: [auditLogs.userId],
-		references: [users.id]
-	})
-}));
-
-export type Session = typeof session.$inferSelect;
-export type User = typeof users.$inferSelect;
+// Export types for compatibility
+export type Session = ISession;
+export type User = IUser;

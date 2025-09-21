@@ -110,7 +110,7 @@
 		return age;
 	};
 
-	const studentAge = calculateAge(visit.student.dateOfBirth);
+	const studentAge = visit.student ? calculateAge(visit.student.dateOfBirth) : null;
 
 	// Format vital signs for display
 	const formatVitalSigns = (vitals: any) => {
@@ -275,15 +275,17 @@
 						{/if}
 
 						<!-- Nurse Information -->
-						<div class="border-t border-gray-200 pt-4 dark:border-gray-700">
-							<div class="mb-1 text-sm font-medium text-gray-600 dark:text-gray-400">
-								{visit.attendedBy.role === 'nurse' ? 'Nurse' : 'Attended by'}:
+						{#if visit.attendedBy}
+							<div class="border-t border-gray-200 pt-4 dark:border-gray-700">
+								<div class="mb-1 text-sm font-medium text-gray-600 dark:text-gray-400">
+									{visit.attendedBy.role === 'nurse' ? 'Nurse' : 'Attended by'}:
+								</div>
+								<div class="text-gray-900 dark:text-white">
+									{visit.attendedBy.firstName}
+									{visit.attendedBy.lastName}
+								</div>
 							</div>
-							<div class="text-gray-900 dark:text-white">
-								{visit.attendedBy.firstName}
-								{visit.attendedBy.lastName}
-							</div>
-						</div>
+						{/if}
 					</div>
 				</div>
 			</Card>
@@ -293,95 +295,97 @@
 		<div class="lg:col-span-1">
 			<div class="space-y-6">
 				<!-- Patient Info Card -->
-				<Card class="border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/20">
-					<CardHeader>
-						<CardTitle class="flex items-center gap-2 text-rose-900 dark:text-rose-100">
-							<User class="size-5" />
-							Patient Information
-						</CardTitle>
-					</CardHeader>
-					<CardContent class="space-y-4">
-						<!-- Patient Avatar and Name -->
-						<div class="flex items-center space-x-3">
-							<Avatar class="h-16 w-16">
-								{#if visit.student.profileUrl}
-									<AvatarImage
-										src={visit.student.profileUrl}
-										alt={`${visit.student.firstName} ${visit.student.lastName}`}
-									/>
-								{/if}
-								<AvatarFallback
-									class="bg-rose-200 text-rose-800 dark:bg-rose-800 dark:text-rose-200"
-								>
-									{visit.student.firstName.charAt(0)}{visit.student.lastName.charAt(0)}
-								</AvatarFallback>
-							</Avatar>
-							<div>
-								<div class="font-semibold text-rose-900 dark:text-rose-100">
-									{visit.student.firstName}
-									{visit.student.lastName}
+				{#if visit.student}
+					<Card class="border-rose-200 bg-rose-50 dark:border-rose-800 dark:bg-rose-950/20">
+						<CardHeader>
+							<CardTitle class="flex items-center gap-2 text-rose-900 dark:text-rose-100">
+								<User class="size-5" />
+								Patient Information
+							</CardTitle>
+						</CardHeader>
+						<CardContent class="space-y-4">
+							<!-- Patient Avatar and Name -->
+							<div class="flex items-center space-x-3">
+								<Avatar class="h-16 w-16">
+									{#if visit.student.profileUrl}
+										<AvatarImage
+											src={visit.student.profileUrl}
+											alt={`${visit.student.firstName} ${visit.student.lastName}`}
+										/>
+									{/if}
+									<AvatarFallback
+										class="bg-rose-200 text-rose-800 dark:bg-rose-800 dark:text-rose-200"
+									>
+										{visit.student.firstName.charAt(0)}{visit.student.lastName.charAt(0)}
+									</AvatarFallback>
+								</Avatar>
+								<div>
+									<div class="font-semibold text-rose-900 dark:text-rose-100">
+										{visit.student.firstName}
+										{visit.student.lastName}
+									</div>
+									<div class="text-sm text-rose-700 dark:text-rose-300">
+										ID: {visit.student.studentId}
+									</div>
+									<div class="text-sm text-rose-700 dark:text-rose-300">
+										Age: {studentAge} years old
+									</div>
 								</div>
-								<div class="text-sm text-rose-700 dark:text-rose-300">
-									ID: {visit.student.studentId}
-								</div>
-								<div class="text-sm text-rose-700 dark:text-rose-300">
-									Age: {studentAge} years old
-								</div>
 							</div>
-						</div>
 
-						<Separator class="border-rose-200 dark:border-rose-800" />
+							<Separator class="border-rose-200 dark:border-rose-800" />
 
-						<!-- Student Details -->
-						<div class="space-y-3">
-							<div class="flex justify-between">
-								<span class="text-sm text-rose-700 dark:text-rose-300">Grade:</span>
-								<span class="text-sm font-medium text-rose-900 dark:text-rose-100">
-									{visit.student.grade}{visit.student.section ? ` ${visit.student.section}` : ''}
-								</span>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-sm text-rose-700 dark:text-rose-300">Date of Birth:</span>
-								<span class="text-sm font-medium text-rose-900 dark:text-rose-100">
-									{new Date(visit.student.dateOfBirth).toLocaleDateString('en-US', {
-										month: 'short',
-										day: 'numeric',
-										year: 'numeric'
-									})}
-								</span>
-							</div>
-						</div>
-
-						<Separator class="border-rose-200 dark:border-rose-800" />
-
-						<!-- Visit Timing -->
-						<div class="space-y-3">
-							<div class="flex justify-between">
-								<span class="text-sm text-rose-700 dark:text-rose-300">Visit Date:</span>
-								<span class="text-sm font-medium text-rose-900 dark:text-rose-100">
-									{formattedDate}
-								</span>
-							</div>
-							<div class="flex justify-between">
-								<span class="text-sm text-rose-700 dark:text-rose-300">Check-in:</span>
-								<span class="text-sm font-medium text-rose-900 dark:text-rose-100">
-									{formattedTime}
-								</span>
-							</div>
-							{#if checkOutFormatted}
+							<!-- Student Details -->
+							<div class="space-y-3">
 								<div class="flex justify-between">
-									<span class="text-sm text-rose-700 dark:text-rose-300">Check-out:</span>
+									<span class="text-sm text-rose-700 dark:text-rose-300">Grade:</span>
 									<span class="text-sm font-medium text-rose-900 dark:text-rose-100">
-										{checkOutFormatted}
+										{visit.student.grade}{visit.student.section ? ` ${visit.student.section}` : ''}
 									</span>
 								</div>
-							{/if}
-						</div>
-					</CardContent>
-				</Card>
+								<div class="flex justify-between">
+									<span class="text-sm text-rose-700 dark:text-rose-300">Date of Birth:</span>
+									<span class="text-sm font-medium text-rose-900 dark:text-rose-100">
+										{new Date(visit.student.dateOfBirth).toLocaleDateString('en-US', {
+											month: 'short',
+											day: 'numeric',
+											year: 'numeric'
+										})}
+									</span>
+								</div>
+							</div>
+
+							<Separator class="border-rose-200 dark:border-rose-800" />
+
+							<!-- Visit Timing -->
+							<div class="space-y-3">
+								<div class="flex justify-between">
+									<span class="text-sm text-rose-700 dark:text-rose-300">Visit Date:</span>
+									<span class="text-sm font-medium text-rose-900 dark:text-rose-100">
+										{formattedDate}
+									</span>
+								</div>
+								<div class="flex justify-between">
+									<span class="text-sm text-rose-700 dark:text-rose-300">Check-in:</span>
+									<span class="text-sm font-medium text-rose-900 dark:text-rose-100">
+										{formattedTime}
+									</span>
+								</div>
+								{#if checkOutFormatted}
+									<div class="flex justify-between">
+										<span class="text-sm text-rose-700 dark:text-rose-300">Check-out:</span>
+										<span class="text-sm font-medium text-rose-900 dark:text-rose-100">
+											{checkOutFormatted}
+										</span>
+									</div>
+								{/if}
+							</div>
+						</CardContent>
+					</Card>
+				{/if}
 
 				<!-- Medical History -->
-				{#if visit.student.chronicHealthConditions?.length > 0 || visit.student.currentMedications?.length > 0 || visit.student.healthHistory}
+				{#if visit.student && (visit.student.chronicHealthConditions?.length > 0 || visit.student.currentMedications?.length > 0 || visit.student.healthHistory)}
 					<Card class="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/20">
 						<CardHeader>
 							<CardTitle class="flex items-center gap-2 text-amber-900 dark:text-amber-100">

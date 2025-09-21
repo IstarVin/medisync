@@ -1,7 +1,12 @@
-import { db } from '$lib/server/db/index.js';
-import { clinicVisits, students, users } from '$lib/server/db/schema.js';
+import {
+	ClinicVisit,
+	connectMongoDB,
+	Student,
+	User,
+	type IStudent,
+	type IUser
+} from '$lib/server/db/index.js';
 import { fail, redirect } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ url }) => {
@@ -12,44 +17,42 @@ export const load: PageServerLoad = async ({ url }) => {
 	}
 
 	try {
+		// Ensure MongoDB connection
+		await connectMongoDB();
+
 		// Fetch the student to create visit for
-		const [student] = await db
-			.select({
-				id: students.id,
-				studentId: students.studentId,
-				firstName: students.firstName,
-				lastName: students.lastName,
-				grade: students.grade,
-				section: students.section
-			})
-			.from(students)
-			.where(eq(students.id, studentId))
-			.limit(1);
+		const student = await Student.findById(studentId)
+			.select('_id studentId firstName lastName grade section')
+			.lean();
 
 		if (!student) {
 			throw redirect(302, '/students');
 		}
 
 		// Fetch available nurses for the form
-		const availableNurses = await db
-			.select({
-				id: users.id,
-				name: users.firstName,
-				lastName: users.lastName,
-				role: users.role
-			})
-			.from(users)
-			.where(eq(users.role, 'nurse'))
-			.orderBy(users.firstName, users.lastName);
+		const availableNurses = await User.find({ role: 'nurse' })
+			.select('_id firstName lastName role')
+			.sort({ firstName: 1, lastName: 1 })
+			.lean();
 
 		// Format nurse names for display
 		const formattedNurses = availableNurses.map((nurse) => ({
-			id: nurse.id,
-			name: `${nurse.name} ${nurse.lastName}`
+			id: (nurse as unknown as IUser)._id?.toString() || '',
+			name: `${(nurse as unknown as IUser).firstName} ${(nurse as unknown as IUser).lastName}`
 		}));
 
+		// Format student data
+		const formattedStudent = {
+			id: (student as unknown as IStudent)._id?.toString() || '',
+			studentId: (student as unknown as IStudent).studentId || '',
+			firstName: (student as unknown as IStudent).firstName || '',
+			lastName: (student as unknown as IStudent).lastName || '',
+			grade: (student as unknown as IStudent).grade || '',
+			section: (student as unknown as IStudent).section || null
+		};
+
 		return {
-			student,
+			student: formattedStudent,
 			availableNurses: formattedNurses
 		};
 	} catch (error) {
@@ -61,6 +64,9 @@ export const load: PageServerLoad = async ({ url }) => {
 export const actions: Actions = {
 	createVisit: async ({ request }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 
 			// Extract visit data
@@ -113,11 +119,7 @@ export const actions: Actions = {
 			}
 
 			// Verify student exists
-			const [student] = await db
-				.select({ id: students.id })
-				.from(students)
-				.where(eq(students.id, visitData.studentId))
-				.limit(1);
+			const student = await Student.findById(visitData.studentId).select('_id').lean();
 
 			if (!student) {
 				return fail(400, {
@@ -126,11 +128,7 @@ export const actions: Actions = {
 			}
 
 			// Verify nurse exists
-			const [nurse] = await db
-				.select({ id: users.id })
-				.from(users)
-				.where(eq(users.id, visitData.nurseId))
-				.limit(1);
+			const nurse = await User.findById(visitData.nurseId).select('_id').lean();
 
 			if (!nurse) {
 				return fail(400, {
@@ -139,31 +137,28 @@ export const actions: Actions = {
 			}
 
 			// Create the visit
-			const [newVisit] = await db
-				.insert(clinicVisits)
-				.values({
-					studentId: visitData.studentId,
-					attendedById: visitData.nurseId,
-					visitType: visitData.visitType as
-						| 'emergency'
-						| 'illness'
-						| 'injury'
-						| 'medication'
-						| 'checkup'
-						| 'mental_health'
-						| 'other',
-					severity: visitData.severity as 'low' | 'medium' | 'high' | 'critical',
-					isEmergency: visitData.isEmergency,
-					chiefComplaint: visitData.reason,
-					symptoms: visitData.details || null,
-					medicationGiven: visitData.medicationsGiven || null,
-					status: 'active',
-					parentNotified: visitData.isEmergency // Auto-notify parents for emergency visits
-				})
-				.returning({ id: clinicVisits.id });
+			const newVisit = await ClinicVisit.create({
+				studentId: visitData.studentId,
+				attendedById: visitData.nurseId,
+				visitType: visitData.visitType as
+					| 'emergency'
+					| 'illness'
+					| 'injury'
+					| 'medication'
+					| 'checkup'
+					| 'mental_health'
+					| 'other',
+				severity: visitData.severity as 'low' | 'medium' | 'high' | 'critical',
+				isEmergency: visitData.isEmergency,
+				chiefComplaint: visitData.reason,
+				symptoms: visitData.details || null,
+				medicationGiven: visitData.medicationsGiven || null,
+				status: 'active',
+				parentNotified: visitData.isEmergency // Auto-notify parents for emergency visits
+			});
 
 			// Redirect to the new visit page
-			throw redirect(302, `/visits/${newVisit.id}`);
+			throw redirect(302, `/visits/${newVisit._id.toString()}`);
 		} catch (error) {
 			console.error('Error creating visit:', error);
 			return fail(500, {

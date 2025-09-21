@@ -1,9 +1,7 @@
 import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
-import { db } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
+import { db, User } from '$lib/server/db';
 import { verify } from '@node-rs/argon2';
 import { fail, isRedirect, redirect, type Actions } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -28,9 +26,12 @@ export const actions: Actions = {
 				return fail(400, { error: 'Email and password are required.' });
 			}
 
+			// Ensure DB connection
+			await db;
+
 			// Find user by email
-			const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-			if (!user || !user.isActive) {
+			const user = await User.findOne({ email, isActive: true });
+			if (!user) {
 				return fail(401, { error: 'Invalid email or password.' });
 			}
 
@@ -41,11 +42,12 @@ export const actions: Actions = {
 			}
 
 			// Update last login time
-			await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, user.id));
+			user.lastLogin = new Date();
+			await user.save();
 
 			// Create session using Lucia auth
 			const sessionToken = generateSessionToken();
-			const session = await createSession(sessionToken, user.id);
+			const session = await createSession(sessionToken, user._id.toString());
 			setSessionTokenCookie(event, sessionToken, session.expiresAt);
 
 			return redirect(303, '/');

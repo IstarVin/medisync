@@ -832,7 +832,10 @@
 										role="combobox"
 										aria-expanded={doctorComboboxOpen}
 									>
-										{selectedDoctor || 'Select a doctor...'}
+										{selectedDoctor ||
+											(availableDoctors.length === 0
+												? 'No doctors available'
+												: 'Select a doctor...')}
 										<ChevronsUpDown class="ml-2 size-4 shrink-0 opacity-50" />
 									</Button>
 								{/snippet}
@@ -841,7 +844,13 @@
 								<Command.Root>
 									<Command.Input placeholder="Search doctor..." />
 									<Command.List>
-										<Command.Empty>No doctor found.</Command.Empty>
+										<Command.Empty>
+											{#if availableDoctors.length === 0}
+												No doctors available. Please add doctors in the Staff section first.
+											{:else}
+												No doctor found.
+											{/if}
+										</Command.Empty>
 										<Command.Group>
 											{#each availableDoctors as doctor}
 												<Command.Item
@@ -867,9 +876,16 @@
 							</Popover.Content>
 						</Popover.Root>
 						<input type="hidden" name="doctorId" bind:value={formData.doctorId} />
-						<p class="text-sm text-muted-foreground">
-							Select the doctor who will be responsible for this student's medical care.
-						</p>
+						{#if availableDoctors.length === 0}
+							<p class="text-sm text-amber-600">
+								⚠️ No doctors available. Please add doctors in the <strong>Staff</strong> section before
+								assigning them to students.
+							</p>
+						{:else}
+							<p class="text-sm text-muted-foreground">
+								Select the doctor who will be responsible for this student's medical care.
+							</p>
+						{/if}
 						{#if errors.doctorId}
 							<p class="text-sm text-destructive">{errors.doctorId[0]}</p>
 						{/if}

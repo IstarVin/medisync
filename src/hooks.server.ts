@@ -1,10 +1,12 @@
 import * as auth from '$lib/server/auth';
-import { db } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
+import { connectMongoDB, User } from '$lib/server/db';
 import { serverState } from '$lib/server/state';
-import { error, redirect, type Handle } from '@sveltejs/kit';
+import { error, redirect, type Handle, type ServerInit } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
-import { eq } from 'drizzle-orm';
+
+export const init: ServerInit = async () => {
+	await connectMongoDB();
+};
 
 const handleAuth: Handle = async ({ event, resolve }) => {
 	const route = event.route.id;
@@ -13,7 +15,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	if (!serverState.init) {
-		const admin = await db.query.users.findFirst({ where: eq(users.role, 'admin') });
+		const admin = await User.findOne({ role: 'admin' });
 
 		if (!admin && !route.includes('init')) {
 			return redirect(302, '/init');

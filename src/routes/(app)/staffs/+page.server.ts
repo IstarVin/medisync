@@ -1,38 +1,33 @@
 import { addStaffSchema, updateStaffSchema } from '$lib/schemas/staff.js';
-import { db } from '$lib/server/db/index.js';
-import { users } from '$lib/server/db/schema.js';
+import { connectMongoDB, User } from '$lib/server/db/index.js';
 import { hash } from '@node-rs/argon2';
 import { fail } from '@sveltejs/kit';
-import { asc, eq, or } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
 	try {
+		// Ensure MongoDB connection
+		await connectMongoDB();
+
 		// Fetch all staff members (nurses, doctors, admins, staff)
-		const allStaff = await db
+		const allStaff = await User.find({
+			role: { $in: ['nurse', 'doctor', 'admin', 'staff'] }
+		})
 			.select({
-				id: users.id,
-				email: users.email,
-				firstName: users.firstName,
-				lastName: users.lastName,
-				role: users.role,
-				phoneNumber: users.phoneNumber,
-				profileUrl: users.profileUrl,
-				isActive: users.isActive,
-				lastLogin: users.lastLogin,
-				createdAt: users.createdAt,
-				updatedAt: users.updatedAt
+				_id: 1,
+				email: 1,
+				firstName: 1,
+				lastName: 1,
+				role: 1,
+				phoneNumber: 1,
+				profileUrl: 1,
+				isActive: 1,
+				lastLogin: 1,
+				createdAt: 1,
+				updatedAt: 1
 			})
-			.from(users)
-			.where(
-				or(
-					eq(users.role, 'nurse'),
-					eq(users.role, 'doctor'),
-					eq(users.role, 'admin'),
-					eq(users.role, 'staff')
-				)
-			)
-			.orderBy(asc(users.role), asc(users.lastName), asc(users.firstName));
+			.sort({ role: 1, lastName: 1, firstName: 1 })
+			.lean();
 
 		// Calculate statistics
 		const stats = {
@@ -45,7 +40,19 @@ export const load: PageServerLoad = async () => {
 		};
 
 		return {
-			staff: allStaff,
+			staff: allStaff.map((staff) => ({
+				id: staff._id?.toString() || '',
+				email: staff.email,
+				firstName: staff.firstName,
+				lastName: staff.lastName,
+				role: staff.role,
+				phoneNumber: staff.phoneNumber,
+				profileUrl: staff.profileUrl,
+				isActive: staff.isActive,
+				lastLogin: staff.lastLogin,
+				createdAt: staff.createdAt,
+				updatedAt: staff.updatedAt
+			})),
 			stats
 		};
 	} catch (error) {
@@ -67,6 +74,9 @@ export const load: PageServerLoad = async () => {
 export const actions: Actions = {
 	addStaff: async ({ request }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 
 			// Convert FormData to object
@@ -100,13 +110,9 @@ export const actions: Actions = {
 			const validatedData = validationResult.data;
 
 			// Check if email already exists
-			const existingUser = await db
-				.select({ id: users.id })
-				.from(users)
-				.where(eq(users.email, validatedData.email))
-				.limit(1);
+			const existingUser = await User.findOne({ email: validatedData.email }).select('_id');
 
-			if (existingUser.length > 0) {
+			if (existingUser) {
 				return fail(400, {
 					errors: {
 						email: ['A user with this email already exists']
@@ -129,19 +135,16 @@ export const actions: Actions = {
 			});
 
 			// Create the staff member
-			const [newStaff] = await db
-				.insert(users)
-				.values({
-					email: validatedData.email,
-					passwordHash,
-					firstName: validatedData.firstName,
-					lastName: validatedData.lastName,
-					role: validatedData.role as 'nurse' | 'doctor' | 'admin' | 'staff',
-					phoneNumber: validatedData.phoneNumber || null,
-					profileUrl: validatedData.profileUrl || null,
-					isActive: true
-				})
-				.returning();
+			const newStaff = await User.create({
+				email: validatedData.email,
+				passwordHash,
+				firstName: validatedData.firstName,
+				lastName: validatedData.lastName,
+				role: validatedData.role as 'nurse' | 'doctor' | 'admin' | 'staff',
+				phoneNumber: validatedData.phoneNumber || undefined,
+				profileUrl: validatedData.profileUrl || undefined,
+				isActive: true
+			});
 
 			if (!newStaff) {
 				throw new Error('Failed to create staff member');
@@ -164,6 +167,9 @@ export const actions: Actions = {
 
 	updateStaff: async ({ request }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 
 			// Convert FormData to object
@@ -197,18 +203,18 @@ export const actions: Actions = {
 			const validatedData = validationResult.data;
 
 			// Update the staff member
-			const [updatedStaff] = await db
-				.update(users)
-				.set({
+			const updatedStaff = await User.findByIdAndUpdate(
+				validatedData.id,
+				{
 					firstName: validatedData.firstName,
 					lastName: validatedData.lastName,
 					role: validatedData.role as 'nurse' | 'doctor' | 'admin' | 'staff',
-					phoneNumber: validatedData.phoneNumber || null,
-					profileUrl: validatedData.profileUrl || null,
+					phoneNumber: validatedData.phoneNumber || undefined,
+					profileUrl: validatedData.profileUrl || undefined,
 					updatedAt: new Date()
-				})
-				.where(eq(users.id, validatedData.id))
-				.returning();
+				},
+				{ new: true }
+			);
 
 			if (!updatedStaff) {
 				throw new Error('Staff member not found');
@@ -230,6 +236,9 @@ export const actions: Actions = {
 
 	deleteStaff: async ({ request }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 			const staffId = formData.get('id')?.toString();
 
@@ -243,14 +252,14 @@ export const actions: Actions = {
 
 			// Instead of deleting, we'll deactivate the staff member
 			// This preserves historical data and references
-			const [deactivatedStaff] = await db
-				.update(users)
-				.set({
+			const deactivatedStaff = await User.findByIdAndUpdate(
+				staffId,
+				{
 					isActive: false,
 					updatedAt: new Date()
-				})
-				.where(eq(users.id, staffId))
-				.returning();
+				},
+				{ new: true }
+			);
 
 			if (!deactivatedStaff) {
 				throw new Error('Staff member not found');
@@ -272,6 +281,9 @@ export const actions: Actions = {
 
 	activateStaff: async ({ request }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 			const staffId = formData.get('id')?.toString();
 
@@ -284,14 +296,14 @@ export const actions: Actions = {
 			}
 
 			// Activate the staff member
-			const [activatedStaff] = await db
-				.update(users)
-				.set({
+			const activatedStaff = await User.findByIdAndUpdate(
+				staffId,
+				{
 					isActive: true,
 					updatedAt: new Date()
-				})
-				.where(eq(users.id, staffId))
-				.returning();
+				},
+				{ new: true }
+			);
 
 			if (!activatedStaff) {
 				throw new Error('Staff member not found');

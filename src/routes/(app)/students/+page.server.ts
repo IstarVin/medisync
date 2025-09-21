@@ -1,37 +1,57 @@
-import { db } from '$lib/server/db/index.js';
-import { clinicVisits, emergencyContacts, students, users } from '$lib/server/db/schema.js';
+import {
+	ClinicVisit,
+	connectMongoDB,
+	EmergencyContact,
+	Student,
+	User,
+	type IEmergencyContact,
+	type IStudent
+} from '$lib/server/db/index.js';
 import { fail } from '@sveltejs/kit';
-import { asc, count, eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
 	try {
-		// Fetch all students with their emergency contacts using the relation query
-		const allStudents = await db.query.students.findMany({
-			with: {
-				emergencyContacts: {
-					orderBy: [asc(emergencyContacts.priority), asc(emergencyContacts.createdAt)]
+		// Ensure MongoDB connection
+		await connectMongoDB();
+
+		// Fetch all students first
+		const allStudents = await Student.find().sort({ lastName: 1, firstName: 1 }).lean();
+
+		// Fetch all emergency contacts for the students
+		const studentIds = allStudents.map((student) => student._id);
+		const allEmergencyContacts = await EmergencyContact.find({
+			studentId: { $in: studentIds }
+		})
+			.sort({ priority: 1, createdAt: 1 })
+			.lean();
+
+		// Group emergency contacts by studentId for easy lookup
+		const contactsByStudentId = allEmergencyContacts.reduce(
+			(acc, contact) => {
+				const studentId = contact.studentId.toString();
+				if (!acc[studentId]) {
+					acc[studentId] = [];
 				}
+				acc[studentId].push(contact);
+				return acc;
 			},
-			orderBy: [asc(students.lastName), asc(students.firstName)]
-		});
+			{} as Record<string, typeof allEmergencyContacts>
+		);
 
 		// Fetch available doctors for the form
-		const availableDoctors = await db
-			.select({
-				id: users.id,
-				name: users.firstName,
-				lastName: users.lastName,
-				role: users.role
-			})
-			.from(users)
-			.where(eq(users.role, 'doctor'))
-			.orderBy(users.firstName, users.lastName);
+		const availableDoctors = await User.find({ role: 'doctor' })
+			.select('_id firstName lastName role')
+			.sort({ firstName: 1, lastName: 1 })
+			.lean();
 
 		// Format doctor names for display
 		const formattedDoctors = availableDoctors.map((doctor) => ({
-			id: doctor.id,
-			name: `${doctor.name} ${doctor.lastName}`
+			id:
+				(
+					doctor as unknown as { _id: unknown; firstName: string; lastName: string }
+				)._id?.toString() || '',
+			name: `${(doctor as unknown as { firstName: string; lastName: string }).firstName} ${(doctor as unknown as { firstName: string; lastName: string }).lastName}`
 		}));
 
 		// Calculate statistics
@@ -57,8 +77,49 @@ export const load: PageServerLoad = async () => {
 			)
 		].sort();
 
+		// Format students for frontend
+		const formattedStudents = allStudents.map((student) => ({
+			id: (student as unknown as IStudent)._id?.toString() || '',
+			studentId: (student as unknown as IStudent).studentId || '',
+			qrCodeId: (student as unknown as IStudent).qrCodeId || null,
+			firstName: (student as unknown as IStudent).firstName || '',
+			lastName: (student as unknown as IStudent).lastName || '',
+			middleName: (student as unknown as IStudent).middleName || null,
+			email: (student as unknown as IStudent).email || null,
+			dateOfBirth: (student as unknown as IStudent).dateOfBirth,
+			gender: (student as unknown as IStudent).gender,
+			grade: (student as unknown as IStudent).grade || '',
+			section: (student as unknown as IStudent).section || null,
+			address: (student as unknown as IStudent).address || null,
+			chronicHealthConditions: (student as unknown as IStudent).chronicHealthConditions || [],
+			currentMedications: (student as unknown as IStudent).currentMedications || [],
+			doctorId: (student as unknown as IStudent).doctorId?.toString() || null,
+			healthHistory: (student as unknown as IStudent).healthHistory || null,
+			enrollmentDate: (student as unknown as IStudent).enrollmentDate,
+			isActive: (student as unknown as IStudent).isActive || false,
+			profileUrl: (student as unknown as IStudent).profileUrl || null,
+			createdAt: (student as unknown as IStudent).createdAt,
+			updatedAt: (student as unknown as IStudent).updatedAt,
+			emergencyContacts: (
+				contactsByStudentId[(student as unknown as IStudent)._id?.toString()] || []
+			).map((contact) => ({
+				id: (contact as unknown as IEmergencyContact)._id?.toString() || '',
+				studentId: (contact as unknown as IEmergencyContact).studentId?.toString() || '',
+				name: (contact as unknown as IEmergencyContact).name || '',
+				relationship: (contact as unknown as IEmergencyContact).relationship || 'other',
+				phoneNumber: (contact as unknown as IEmergencyContact).phoneNumber || '',
+				alternatePhone: (contact as unknown as IEmergencyContact).alternatePhone || null,
+				email: (contact as unknown as IEmergencyContact).email || null,
+				address: (contact as unknown as IEmergencyContact).address || null,
+				isPrimary: (contact as unknown as IEmergencyContact).isPrimary || false,
+				priority: (contact as unknown as IEmergencyContact).priority || 0,
+				createdAt: (contact as unknown as IEmergencyContact).createdAt,
+				updatedAt: (contact as unknown as IEmergencyContact).updatedAt
+			}))
+		}));
+
 		return {
-			students: allStudents,
+			students: formattedStudents,
 			availableDoctors: formattedDoctors,
 			stats,
 			filterOptions: {
@@ -90,6 +151,9 @@ export const load: PageServerLoad = async () => {
 export const actions: Actions = {
 	addStudent: async ({ request }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 
 			// Extract student data
@@ -288,13 +352,11 @@ export const actions: Actions = {
 			}
 
 			// Check for existing student ID
-			const existingStudent = await db
-				.select({ id: students.id })
-				.from(students)
-				.where(eq(students.studentId, studentData.studentId))
-				.limit(1);
+			const existingStudent = await Student.findOne({ studentId: studentData.studentId }).select(
+				'_id'
+			);
 
-			if (existingStudent.length > 0) {
+			if (existingStudent) {
 				return fail(400, {
 					errors: {
 						studentId: ['A student with this ID already exists']
@@ -306,13 +368,9 @@ export const actions: Actions = {
 
 			// Check for existing email if provided
 			if (studentData.email && studentData.email.trim()) {
-				const existingEmail = await db
-					.select({ id: students.id })
-					.from(students)
-					.where(eq(students.email, studentData.email))
-					.limit(1);
+				const existingEmail = await Student.findOne({ email: studentData.email }).select('_id');
 
-				if (existingEmail.length > 0) {
+				if (existingEmail) {
 					return fail(400, {
 						errors: {
 							email: ['A student with this email already exists']
@@ -324,57 +382,75 @@ export const actions: Actions = {
 			}
 
 			// Insert student
-			const [newStudent] = await db
-				.insert(students)
-				.values({
-					studentId: studentData.studentId,
-					firstName: studentData.firstName,
-					lastName: studentData.lastName,
-					middleName: studentData.middleName || null,
-					email: studentData.email || null,
-					dateOfBirth: new Date(studentData.dateOfBirth),
-					gender: studentData.gender,
-					grade: studentData.grade,
-					section: studentData.section || null,
-					address: studentData.address || null,
-					profileUrl: studentData.profileUrl || null,
-					chronicHealthConditions: studentData.chronicHealthConditions
-						? studentData.chronicHealthConditions
-								.split(/[\n,]+/)
-								.map((s) => s.trim())
-								.filter(Boolean)
-						: [],
-					currentMedications: studentData.currentMedications
-						? studentData.currentMedications
-								.split(/[\n,]+/)
-								.map((s) => s.trim())
-								.filter(Boolean)
-						: [],
-					healthHistory: studentData.healthHistory || null,
-					doctorId: studentData.doctorId || null,
-					enrollmentDate: new Date(),
-					isActive: true
-				})
-				.returning();
+			const newStudent = await Student.create({
+				studentId: studentData.studentId,
+				firstName: studentData.firstName,
+				lastName: studentData.lastName,
+				middleName: studentData.middleName || undefined,
+				email: studentData.email || undefined,
+				dateOfBirth: new Date(studentData.dateOfBirth),
+				gender: studentData.gender,
+				grade: studentData.grade,
+				section: studentData.section || undefined,
+				address: studentData.address || undefined,
+				profileUrl: studentData.profileUrl || undefined,
+				chronicHealthConditions: studentData.chronicHealthConditions
+					? studentData.chronicHealthConditions
+							.split(/[\n,]+/)
+							.map((s) => s.trim())
+							.filter(Boolean)
+					: [],
+				currentMedications: studentData.currentMedications
+					? studentData.currentMedications
+							.split(/[\n,]+/)
+							.map((s) => s.trim())
+							.filter(Boolean)
+					: [],
+				healthHistory: studentData.healthHistory || undefined,
+				doctorId: studentData.doctorId || undefined,
+				enrollmentDate: new Date(),
+				isActive: true
+			});
 
 			// Insert emergency contacts
-			for (const contact of emergencyContactsData) {
-				await db.insert(emergencyContacts).values({
-					studentId: newStudent.id,
-					name: contact.name,
-					relationship: contact.relationship,
-					phoneNumber: contact.phoneNumber,
-					alternatePhone: contact.alternatePhone || null,
-					email: contact.email || null,
-					address: contact.address || null,
-					isPrimary: contact.isPrimary,
-					priority: contact.priority
-				});
-			}
+			const emergencyContactsToCreate = emergencyContactsData.map((contact) => ({
+				studentId: newStudent._id,
+				name: contact.name,
+				relationship: contact.relationship,
+				phoneNumber: contact.phoneNumber,
+				alternatePhone: contact.alternatePhone || undefined,
+				email: contact.email || undefined,
+				address: contact.address || undefined,
+				isPrimary: contact.isPrimary,
+				priority: contact.priority
+			}));
+
+			await EmergencyContact.insertMany(emergencyContactsToCreate);
 
 			return {
 				success: true,
-				student: newStudent
+				student: {
+					id: newStudent._id?.toString() || '',
+					studentId: newStudent.studentId,
+					firstName: newStudent.firstName,
+					lastName: newStudent.lastName,
+					middleName: newStudent.middleName || null,
+					email: newStudent.email || null,
+					dateOfBirth: newStudent.dateOfBirth,
+					gender: newStudent.gender,
+					grade: newStudent.grade,
+					section: newStudent.section || null,
+					address: newStudent.address || null,
+					profileUrl: newStudent.profileUrl || null,
+					chronicHealthConditions: newStudent.chronicHealthConditions || [],
+					currentMedications: newStudent.currentMedications || [],
+					healthHistory: newStudent.healthHistory || null,
+					doctorId: newStudent.doctorId?.toString() || null,
+					enrollmentDate: newStudent.enrollmentDate,
+					isActive: newStudent.isActive,
+					createdAt: newStudent.createdAt,
+					updatedAt: newStudent.updatedAt
+				}
 			};
 		} catch (error) {
 			console.error('Error adding student:', error);
@@ -407,6 +483,9 @@ export const actions: Actions = {
 
 	updateStudent: async ({ request }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 
 			// Get student ID for updating
@@ -615,13 +694,12 @@ export const actions: Actions = {
 			}
 
 			// Check for existing student ID (exclude current student)
-			const existingStudentId = await db
-				.select({ id: students.id })
-				.from(students)
-				.where(eq(students.studentId, studentData.studentId))
-				.limit(1);
+			const existingStudentId = await Student.findOne({
+				studentId: studentData.studentId,
+				_id: { $ne: studentId }
+			}).select('_id');
 
-			if (existingStudentId.length > 0 && existingStudentId[0].id !== studentId) {
+			if (existingStudentId) {
 				return fail(400, {
 					errors: {
 						studentId: ['A student with this ID already exists']
@@ -633,13 +711,12 @@ export const actions: Actions = {
 
 			// Check for existing email if provided (exclude current student)
 			if (studentData.email && studentData.email.trim()) {
-				const existingEmail = await db
-					.select({ id: students.id })
-					.from(students)
-					.where(eq(students.email, studentData.email))
-					.limit(1);
+				const existingEmail = await Student.findOne({
+					email: studentData.email,
+					_id: { $ne: studentId }
+				}).select('_id');
 
-				if (existingEmail.length > 0 && existingEmail[0].id !== studentId) {
+				if (existingEmail) {
 					return fail(400, {
 						errors: {
 							email: ['A student with this email already exists']
@@ -651,20 +728,20 @@ export const actions: Actions = {
 			}
 
 			// Update student
-			const [updatedStudent] = await db
-				.update(students)
-				.set({
+			const updatedStudent = await Student.findByIdAndUpdate(
+				studentId,
+				{
 					studentId: studentData.studentId,
 					firstName: studentData.firstName,
 					lastName: studentData.lastName,
-					middleName: studentData.middleName || null,
-					email: studentData.email || null,
+					middleName: studentData.middleName || undefined,
+					email: studentData.email || undefined,
 					dateOfBirth: new Date(studentData.dateOfBirth),
 					gender: studentData.gender,
 					grade: studentData.grade,
-					section: studentData.section || null,
-					address: studentData.address || null,
-					profileUrl: studentData.profileUrl || null,
+					section: studentData.section || undefined,
+					address: studentData.address || undefined,
+					profileUrl: studentData.profileUrl || undefined,
 					chronicHealthConditions: studentData.chronicHealthConditions
 						? studentData.chronicHealthConditions
 								.split(/[\n,]+/)
@@ -677,38 +754,59 @@ export const actions: Actions = {
 								.map((s) => s.trim())
 								.filter(Boolean)
 						: [],
-					healthHistory: studentData.healthHistory || null,
-					doctorId: studentData.doctorId || null,
+					healthHistory: studentData.healthHistory || undefined,
+					doctorId: studentData.doctorId || undefined,
 					updatedAt: new Date()
-				})
-				.where(eq(students.id, studentId))
-				.returning();
+				},
+				{ new: true }
+			);
 
 			if (!updatedStudent) {
 				throw new Error('Student not found');
 			}
 
 			// Delete existing emergency contacts
-			await db.delete(emergencyContacts).where(eq(emergencyContacts.studentId, studentId));
+			await EmergencyContact.deleteMany({ studentId: studentId });
 
 			// Insert new emergency contacts
-			for (const contact of emergencyContactsData) {
-				await db.insert(emergencyContacts).values({
-					studentId: studentId,
-					name: contact.name,
-					relationship: contact.relationship,
-					phoneNumber: contact.phoneNumber,
-					alternatePhone: contact.alternatePhone || null,
-					email: contact.email || null,
-					address: contact.address || null,
-					isPrimary: contact.isPrimary,
-					priority: contact.priority
-				});
-			}
+			const emergencyContactsToCreate = emergencyContactsData.map((contact) => ({
+				studentId: studentId,
+				name: contact.name,
+				relationship: contact.relationship,
+				phoneNumber: contact.phoneNumber,
+				alternatePhone: contact.alternatePhone || undefined,
+				email: contact.email || undefined,
+				address: contact.address || undefined,
+				isPrimary: contact.isPrimary,
+				priority: contact.priority
+			}));
+
+			await EmergencyContact.insertMany(emergencyContactsToCreate);
 
 			return {
 				success: true,
-				student: updatedStudent
+				student: {
+					id: updatedStudent._id?.toString() || '',
+					studentId: updatedStudent.studentId,
+					firstName: updatedStudent.firstName,
+					lastName: updatedStudent.lastName,
+					middleName: updatedStudent.middleName || null,
+					email: updatedStudent.email || null,
+					dateOfBirth: updatedStudent.dateOfBirth,
+					gender: updatedStudent.gender,
+					grade: updatedStudent.grade,
+					section: updatedStudent.section || null,
+					address: updatedStudent.address || null,
+					profileUrl: updatedStudent.profileUrl || null,
+					chronicHealthConditions: updatedStudent.chronicHealthConditions || [],
+					currentMedications: updatedStudent.currentMedications || [],
+					healthHistory: updatedStudent.healthHistory || null,
+					doctorId: updatedStudent.doctorId?.toString() || null,
+					enrollmentDate: updatedStudent.enrollmentDate,
+					isActive: updatedStudent.isActive,
+					createdAt: updatedStudent.createdAt,
+					updatedAt: updatedStudent.updatedAt
+				}
 			};
 		} catch (error) {
 			console.error('Error updating student:', error);
@@ -741,6 +839,9 @@ export const actions: Actions = {
 
 	deleteStudent: async ({ request }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 			const studentId = formData.get('studentId') as string;
 
@@ -751,10 +852,7 @@ export const actions: Actions = {
 			}
 
 			// Check if student exists
-			const [existingStudent] = await db
-				.select({ id: students.id, firstName: students.firstName, lastName: students.lastName })
-				.from(students)
-				.where(eq(students.id, studentId));
+			const existingStudent = await Student.findById(studentId).select('firstName lastName').lean();
 
 			if (!existingStudent) {
 				return fail(404, {
@@ -763,17 +861,14 @@ export const actions: Actions = {
 			}
 
 			// Soft delete - mark as inactive
-			await db
-				.update(students)
-				.set({
-					isActive: false,
-					updatedAt: new Date()
-				})
-				.where(eq(students.id, studentId));
+			await Student.findByIdAndUpdate(studentId, {
+				isActive: false,
+				updatedAt: new Date()
+			});
 
 			return {
 				success: true,
-				message: `Student ${existingStudent.firstName} ${existingStudent.lastName} has been deactivated due to existing clinic visit records.`,
+				message: `Student ${(existingStudent as unknown as { firstName: string; lastName: string }).firstName} ${(existingStudent as unknown as { firstName: string; lastName: string }).lastName} has been deactivated due to existing clinic visit records.`,
 				type: 'deactivated'
 			};
 		} catch (error) {
@@ -786,6 +881,9 @@ export const actions: Actions = {
 
 	reactivateStudent: async ({ request }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 			const studentId = formData.get('studentId') as string;
 
@@ -796,15 +894,9 @@ export const actions: Actions = {
 			}
 
 			// Check if student exists and is inactive
-			const [existingStudent] = await db
-				.select({
-					id: students.id,
-					firstName: students.firstName,
-					lastName: students.lastName,
-					isActive: students.isActive
-				})
-				.from(students)
-				.where(eq(students.id, studentId));
+			const existingStudent = await Student.findById(studentId)
+				.select('firstName lastName isActive')
+				.lean();
 
 			if (!existingStudent) {
 				return fail(404, {
@@ -812,24 +904,21 @@ export const actions: Actions = {
 				});
 			}
 
-			if (existingStudent.isActive) {
+			if ((existingStudent as unknown as { isActive: boolean }).isActive) {
 				return fail(400, {
 					error: 'Student is already active'
 				});
 			}
 
 			// Reactivate the student
-			await db
-				.update(students)
-				.set({
-					isActive: true,
-					updatedAt: new Date()
-				})
-				.where(eq(students.id, studentId));
+			await Student.findByIdAndUpdate(studentId, {
+				isActive: true,
+				updatedAt: new Date()
+			});
 
 			return {
 				success: true,
-				message: `Student ${existingStudent.firstName} ${existingStudent.lastName} has been reactivated.`,
+				message: `Student ${(existingStudent as unknown as { firstName: string; lastName: string }).firstName} ${(existingStudent as unknown as { firstName: string; lastName: string }).lastName} has been reactivated.`,
 				type: 'reactivated'
 			};
 		} catch (error) {
@@ -842,6 +931,9 @@ export const actions: Actions = {
 
 	permanentDeleteStudent: async ({ request }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 			const studentId = formData.get('studentId') as string;
 
@@ -852,15 +944,9 @@ export const actions: Actions = {
 			}
 
 			// Check if student exists and is inactive
-			const [existingStudent] = await db
-				.select({
-					id: students.id,
-					firstName: students.firstName,
-					lastName: students.lastName,
-					isActive: students.isActive
-				})
-				.from(students)
-				.where(eq(students.id, studentId));
+			const existingStudent = await Student.findById(studentId)
+				.select('firstName lastName isActive')
+				.lean();
 
 			if (!existingStudent) {
 				return fail(404, {
@@ -868,23 +954,24 @@ export const actions: Actions = {
 				});
 			}
 
-			if (existingStudent.isActive) {
+			if ((existingStudent as unknown as { isActive: boolean }).isActive) {
 				return fail(400, {
 					error: 'Cannot permanently delete an active student. Please deactivate first.'
 				});
 			}
 
-			// Check if student has clinic visits (they will be deleted due to cascade)
-			const visitCountResult = await db
-				.select({ count: count() })
-				.from(clinicVisits)
-				.where(eq(clinicVisits.studentId, studentId));
-
-			const visitCount = visitCountResult[0]?.count || 0;
+			// Check if student has clinic visits
+			const visitCount = await ClinicVisit.countDocuments({ studentId: studentId });
 
 			// Hard delete - permanently remove the student and all related data
-			// Emergency contacts and clinic visits will be automatically deleted due to cascade
-			await db.delete(students).where(eq(students.id, studentId));
+			// Delete emergency contacts first
+			await EmergencyContact.deleteMany({ studentId: studentId });
+
+			// Delete clinic visits
+			await ClinicVisit.deleteMany({ studentId: studentId });
+
+			// Delete the student
+			await Student.findByIdAndDelete(studentId);
 
 			const visitMessage =
 				visitCount > 0
@@ -893,7 +980,7 @@ export const actions: Actions = {
 
 			return {
 				success: true,
-				message: `Student ${existingStudent.firstName} ${existingStudent.lastName} has been permanently deleted${visitMessage}.`,
+				message: `Student ${(existingStudent as unknown as { firstName: string; lastName: string }).firstName} ${(existingStudent as unknown as { firstName: string; lastName: string }).lastName} has been permanently deleted${visitMessage}.`,
 				type: 'permanently_deleted'
 			};
 		} catch (error) {

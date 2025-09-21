@@ -1,8 +1,25 @@
-import Database from 'better-sqlite3';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import * as schema from './schema';
+import { env } from '$env/dynamic/private';
+import mongoose from 'mongoose';
 
-export const sqlite = new Database(process.env.DATABASE_URL || './data/database.sqlite');
-sqlite.exec('PRAGMA foreign_keys = ON');
+// MongoDB connection function
+export async function connectMongoDB() {
+	if (mongoose.connection.readyState === 1) {
+		return mongoose.connection;
+	}
 
-export const db = drizzle(sqlite, { schema });
+	try {
+		await mongoose.connect(env.MONGODB_URI);
+		console.log('✅ Connected to MongoDB');
+
+		return mongoose.connection;
+	} catch (error) {
+		console.error('❌ MongoDB connection error:', error);
+		throw error;
+	}
+}
+
+// Initialize connection
+export const db = connectMongoDB();
+
+// Export all models for convenience
+export * from './schema';

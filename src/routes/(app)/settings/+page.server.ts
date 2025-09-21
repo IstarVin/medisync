@@ -1,9 +1,7 @@
 import { generateSessionToken } from '$lib/server/auth';
-import { db } from '$lib/server/db';
-import * as table from '$lib/server/db/schema';
+import { db, SystemSetting, User } from '$lib/server/db';
 import { hash, verify } from '@node-rs/argon2';
 import { fail, redirect } from '@sveltejs/kit';
-import { eq, like } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -11,21 +9,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 		return redirect(302, '/login');
 	}
 
+	await db;
+
 	// Get the current user's full details
-	const [currentUser] = await db
-		.select()
-		.from(table.users)
-		.where(eq(table.users.id, locals.user.id));
+	const currentUser = await User.findById(locals.user.id);
+
+	if (!currentUser) {
+		return redirect(302, '/login');
+	}
 
 	// Get all API keys from system settings
-	const apiKeys = await db
-		.select()
-		.from(table.systemSettings)
-		.where(like(table.systemSettings.settingKey, 'api_key%'));
+	const apiKeys = await SystemSetting.find({
+		settingKey: { $regex: /^api_key/ }
+	});
 
 	return {
 		user: {
-			id: currentUser.id,
+			id: currentUser._id.toString(),
 			email: currentUser.email,
 			firstName: currentUser.firstName,
 			lastName: currentUser.lastName,
@@ -37,7 +37,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			updatedAt: currentUser.updatedAt
 		},
 		apiKeys: apiKeys.map((key) => ({
-			id: key.id,
+			id: key._id.toString(),
 			settingKey: key.settingKey,
 			description: key.description,
 			isActive: key.isActive,
@@ -53,6 +53,8 @@ export const actions: Actions = {
 			return fail(401, { message: 'Unauthorized' });
 		}
 
+		await db;
+
 		const data = await request.formData();
 		const firstName = data.get('firstName') as string;
 		const lastName = data.get('lastName') as string;
@@ -65,23 +67,20 @@ export const actions: Actions = {
 		}
 
 		// Check if email is already taken by another user
-		const [existingUser] = await db.select().from(table.users).where(eq(table.users.email, email));
+		const existingUser = await User.findOne({ email, _id: { $ne: locals.user.id } });
 
-		if (existingUser && existingUser.id !== locals.user.id) {
+		if (existingUser) {
 			return fail(400, { message: 'Email is already taken by another user' });
 		}
 
 		try {
-			await db
-				.update(table.users)
-				.set({
-					firstName,
-					lastName,
-					email,
-					phoneNumber: phoneNumber || null,
-					updatedAt: new Date()
-				})
-				.where(eq(table.users.id, locals.user.id));
+			await User.findByIdAndUpdate(locals.user.id, {
+				firstName,
+				lastName,
+				email,
+				phoneNumber: phoneNumber || null,
+				updatedAt: new Date()
+			});
 
 			return { success: true, message: 'Profile updated successfully' };
 		} catch (error) {
@@ -94,6 +93,8 @@ export const actions: Actions = {
 		if (!locals.user) {
 			return fail(401, { message: 'Unauthorized' });
 		}
+
+		await db;
 
 		const data = await request.formData();
 		const currentPassword = data.get('currentPassword') as string;
@@ -114,10 +115,7 @@ export const actions: Actions = {
 		}
 
 		// Get current user's password hash
-		const [user] = await db
-			.select({ passwordHash: table.users.passwordHash })
-			.from(table.users)
-			.where(eq(table.users.id, locals.user.id));
+		const user = await User.findById(locals.user.id, 'passwordHash');
 
 		if (!user) {
 			return fail(404, { message: 'User not found' });
@@ -134,13 +132,10 @@ export const actions: Actions = {
 			const passwordHash = await hash(newPassword);
 
 			// Update password
-			await db
-				.update(table.users)
-				.set({
-					passwordHash,
-					updatedAt: new Date()
-				})
-				.where(eq(table.users.id, locals.user.id));
+			await User.findByIdAndUpdate(locals.user.id, {
+				passwordHash,
+				updatedAt: new Date()
+			});
 
 			return { success: true, message: 'Password changed successfully' };
 		} catch (error) {
@@ -154,11 +149,10 @@ export const actions: Actions = {
 			return fail(401, { message: 'Unauthorized' });
 		}
 
+		await db;
+
 		// Check if user is admin
-		const [user] = await db
-			.select({ role: table.users.role })
-			.from(table.users)
-			.where(eq(table.users.id, locals.user.id));
+		const user = await User.findById(locals.user.id, 'role');
 
 		if (!user || user.role !== 'admin') {
 			return fail(403, { message: 'Only admins can manage API keys' });
@@ -175,7 +169,7 @@ export const actions: Actions = {
 			// Generate a secure API key
 			const apiKey = crypto.randomUUID().replace(/-/g, '') + crypto.randomUUID().replace(/-/g, '');
 
-			await db.insert(table.systemSettings).values({
+			await SystemSetting.create({
 				settingKey: 'api_key_' + generateSessionToken(),
 				settingValue: apiKey,
 				description,
@@ -194,11 +188,10 @@ export const actions: Actions = {
 			return fail(401, { message: 'Unauthorized' });
 		}
 
+		await db;
+
 		// Check if user is admin
-		const [user] = await db
-			.select({ role: table.users.role })
-			.from(table.users)
-			.where(eq(table.users.id, locals.user.id));
+		const user = await User.findById(locals.user.id, 'role');
 
 		if (!user || user.role !== 'admin') {
 			return fail(403, { message: 'Only admins can manage API keys' });
@@ -213,23 +206,17 @@ export const actions: Actions = {
 
 		try {
 			// Get current status
-			const [apiKey] = await db
-				.select({ isActive: table.systemSettings.isActive })
-				.from(table.systemSettings)
-				.where(eq(table.systemSettings.id, keyId));
+			const apiKey = await SystemSetting.findById(keyId, 'isActive');
 
 			if (!apiKey) {
 				return fail(404, { message: 'API key not found' });
 			}
 
 			// Toggle status
-			await db
-				.update(table.systemSettings)
-				.set({
-					isActive: !apiKey.isActive,
-					updatedAt: new Date()
-				})
-				.where(eq(table.systemSettings.id, keyId));
+			await SystemSetting.findByIdAndUpdate(keyId, {
+				isActive: !apiKey.isActive,
+				updatedAt: new Date()
+			});
 
 			return { success: true, message: 'API key status updated successfully' };
 		} catch (error) {
@@ -243,11 +230,10 @@ export const actions: Actions = {
 			return fail(401, { message: 'Unauthorized' });
 		}
 
+		await db;
+
 		// Check if user is admin
-		const [user] = await db
-			.select({ role: table.users.role })
-			.from(table.users)
-			.where(eq(table.users.id, locals.user.id));
+		const user = await User.findById(locals.user.id, 'role');
 
 		if (!user || user.role !== 'admin') {
 			return fail(403, { message: 'Only admins can manage API keys' });
@@ -261,7 +247,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await db.delete(table.systemSettings).where(eq(table.systemSettings.id, keyId));
+			await SystemSetting.findByIdAndDelete(keyId);
 
 			return { success: true, message: 'API key deleted successfully' };
 		} catch (error) {

@@ -1,10 +1,8 @@
 import { createSession, generateSessionToken, setSessionTokenCookie } from '$lib/server/auth';
-import { db } from '$lib/server/db';
-import { users } from '$lib/server/db/schema';
+import { db, User } from '$lib/server/db';
 import { serverState } from '$lib/server/state';
 import { hash } from '@node-rs/argon2';
 import { fail, redirect } from '@sveltejs/kit';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -24,7 +22,10 @@ const createAdminSchema = z
 	});
 
 export const load: PageServerLoad = async () => {
-	const admin = await db.query.users.findFirst({ where: eq(users.role, 'admin') });
+	// Ensure DB connection
+	await db;
+
+	const admin = await User.findOne({ role: 'admin' });
 	if (admin) {
 		// return redirect(302, '/');
 	}
@@ -33,8 +34,11 @@ export const load: PageServerLoad = async () => {
 
 export const actions: Actions = {
 	createAdmin: async (event) => {
+		// Ensure DB connection
+		await db;
+
 		// Check if admin already exists
-		const existingAdmin = await db.query.users.findFirst({ where: eq(users.role, 'admin') });
+		const existingAdmin = await User.findOne({ role: 'admin' });
 		if (existingAdmin) {
 			return redirect(302, '/');
 		}
@@ -73,9 +77,7 @@ export const actions: Actions = {
 
 		try {
 			// Check if email already exists
-			const existingUser = await db.query.users.findFirst({
-				where: eq(users.email, validatedData.email)
-			});
+			const existingUser = await User.findOne({ email: validatedData.email });
 
 			if (existingUser) {
 				return fail(400, {
@@ -92,23 +94,22 @@ export const actions: Actions = {
 			});
 
 			// Create admin user
-			const [newAdmin] = await db
-				.insert(users)
-				.values({
-					email: validatedData.email,
-					firstName: validatedData.firstName,
-					lastName: validatedData.lastName,
-					passwordHash,
-					role: 'admin',
-					phoneNumber: validatedData.phoneNumber || null,
-					isActive: true,
-					lastLogin: new Date()
-				})
-				.returning();
+			const newAdmin = new User({
+				email: validatedData.email,
+				firstName: validatedData.firstName,
+				lastName: validatedData.lastName,
+				passwordHash,
+				role: 'admin',
+				phoneNumber: validatedData.phoneNumber || undefined,
+				isActive: true,
+				lastLogin: new Date()
+			});
+
+			await newAdmin.save();
 
 			// Create session for the new admin
 			const sessionToken = generateSessionToken();
-			const session = await createSession(sessionToken, newAdmin.id);
+			const session = await createSession(sessionToken, newAdmin._id.toString());
 			setSessionTokenCookie(event, sessionToken, session.expiresAt);
 
 			serverState.init = true;

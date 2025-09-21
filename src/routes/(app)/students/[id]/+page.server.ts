@@ -1,47 +1,33 @@
-import { db } from '$lib/server/db/index.js';
-import { clinicVisits, emergencyContacts, students, users } from '$lib/server/db/schema.js';
+import {
+	ClinicVisit,
+	connectMongoDB,
+	EmergencyContact,
+	Student,
+	User,
+	type IClinicVisit,
+	type IEmergencyContact,
+	type IStudent,
+	type IUser
+} from '$lib/server/db/index.js';
 import { sendMailMessage } from '$lib/server/mail.js';
 import { error, fail, isHttpError } from '@sveltejs/kit';
-import { desc, eq } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const studentId = params.id;
 
 	try {
-		// Fetch student with all related data
-		const [student] = await db
-			.select({
-				id: students.id,
-				studentId: students.studentId,
-				qrCodeId: students.qrCodeId,
-				firstName: students.firstName,
-				lastName: students.lastName,
-				middleName: students.middleName,
-				email: students.email,
-				dateOfBirth: students.dateOfBirth,
-				gender: students.gender,
-				grade: students.grade,
-				section: students.section,
-				address: students.address,
-				chronicHealthConditions: students.chronicHealthConditions,
-				currentMedications: students.currentMedications,
-				healthHistory: students.healthHistory,
-				enrollmentDate: students.enrollmentDate,
-				isActive: students.isActive,
-				profileUrl: students.profileUrl,
-				createdAt: students.createdAt,
-				updatedAt: students.updatedAt,
-				// Doctor information
-				doctorId: students.doctorId,
-				doctorFirstName: users.firstName,
-				doctorLastName: users.lastName,
-				doctorEmail: users.email,
-				doctorPhone: users.phoneNumber
+		// Ensure MongoDB connection
+		await connectMongoDB();
+
+		// Fetch student with doctor information
+		const student = await Student.findOne({ studentId })
+			.populate({
+				path: 'doctorId',
+				model: User,
+				select: 'firstName lastName email phoneNumber'
 			})
-			.from(students)
-			.leftJoin(users, eq(students.doctorId, users.id))
-			.where(eq(students.studentId, studentId));
+			.lean();
 
 		if (!student) {
 			throw error(404, {
@@ -50,37 +36,22 @@ export const load: PageServerLoad = async ({ params }) => {
 		}
 
 		// Fetch all emergency contacts for this student
-		const emergencyContactsList = await db
-			.select()
-			.from(emergencyContacts)
-			.where(eq(emergencyContacts.studentId, student.id))
-			.orderBy(emergencyContacts.priority);
+		const emergencyContactsList = await EmergencyContact.find({
+			studentId: (student as unknown as IStudent)._id
+		})
+			.sort({ priority: 1, createdAt: 1 })
+			.lean();
 
 		// Fetch recent clinic visits (last 10 visits)
-		const recentVisits = await db
-			.select({
-				id: clinicVisits.id,
-				visitNumber: clinicVisits.visitNumber,
-				visitType: clinicVisits.visitType,
-				status: clinicVisits.status,
-				severity: clinicVisits.severity,
-				checkInTime: clinicVisits.checkInTime,
-				checkOutTime: clinicVisits.checkOutTime,
-				chiefComplaint: clinicVisits.chiefComplaint,
-				diagnosis: clinicVisits.diagnosis,
-				treatment: clinicVisits.treatment,
-				isEmergency: clinicVisits.isEmergency,
-				parentNotified: clinicVisits.parentNotified,
-				// Staff member who attended
-				attendedByFirstName: users.firstName,
-				attendedByLastName: users.lastName,
-				attendedByRole: users.role
+		const recentVisits = await ClinicVisit.find({ studentId: (student as unknown as IStudent)._id })
+			.populate({
+				path: 'attendedById',
+				model: User,
+				select: 'firstName lastName role'
 			})
-			.from(clinicVisits)
-			.leftJoin(users, eq(clinicVisits.attendedById, users.id))
-			.where(eq(clinicVisits.studentId, student.id))
-			.orderBy(desc(clinicVisits.checkInTime))
-			.limit(10);
+			.sort({ checkInTime: -1 })
+			.limit(10)
+			.lean();
 
 		// Calculate visit statistics
 		const visitStats = {
@@ -97,41 +68,94 @@ export const load: PageServerLoad = async ({ params }) => {
 		};
 
 		// Fetch available nurses for the form
-		const availableNurses = await db
-			.select({
-				id: users.id,
-				name: users.firstName,
-				lastName: users.lastName,
-				role: users.role
-			})
-			.from(users)
-			.where(eq(users.role, 'nurse'))
-			.orderBy(users.firstName, users.lastName);
+		const availableNurses = await User.find({ role: 'nurse' })
+			.select('_id firstName lastName role')
+			.sort({ firstName: 1, lastName: 1 })
+			.lean();
 
 		// Format nurse names for display
 		const formattedNurses = availableNurses.map((nurse) => ({
-			id: nurse.id,
-			name: `${nurse.name} ${nurse.lastName}`
+			id: (nurse as unknown as IUser)._id?.toString() || '',
+			name: `${(nurse as unknown as IUser).firstName} ${(nurse as unknown as IUser).lastName}`
+		}));
+
+		// Format student data
+		const formattedStudent = {
+			id: (student as unknown as IStudent)._id?.toString() || '',
+			studentId: (student as unknown as IStudent).studentId || '',
+			qrCodeId: (student as unknown as IStudent).qrCodeId || null,
+			firstName: (student as unknown as IStudent).firstName || '',
+			lastName: (student as unknown as IStudent).lastName || '',
+			middleName: (student as unknown as IStudent).middleName || null,
+			email: (student as unknown as IStudent).email || null,
+			dateOfBirth: (student as unknown as IStudent).dateOfBirth.toISOString(),
+			gender: (student as unknown as IStudent).gender,
+			grade: (student as unknown as IStudent).grade || '',
+			section: (student as unknown as IStudent).section || null,
+			address: (student as unknown as IStudent).address || null,
+			chronicHealthConditions: (student as unknown as IStudent).chronicHealthConditions || [],
+			currentMedications: (student as unknown as IStudent).currentMedications || [],
+			healthHistory: (student as unknown as IStudent).healthHistory || null,
+			enrollmentDate: (student as unknown as IStudent).enrollmentDate.toISOString(),
+			isActive: (student as unknown as IStudent).isActive || false,
+			profileUrl: (student as unknown as IStudent).profileUrl || null,
+			createdAt: (student as unknown as IStudent).createdAt.toISOString(),
+			updatedAt: (student as unknown as IStudent).updatedAt.toISOString(),
+			// Doctor information
+			doctorId: (student as unknown as IStudent).doctorId?.toString() || null,
+			doctorFirstName:
+				(student as unknown as IStudent & { doctorId: IUser }).doctorId?.firstName || null,
+			doctorLastName:
+				(student as unknown as IStudent & { doctorId: IUser }).doctorId?.lastName || null,
+			doctorEmail: (student as unknown as IStudent & { doctorId: IUser }).doctorId?.email || null,
+			doctorPhone:
+				(student as unknown as IStudent & { doctorId: IUser }).doctorId?.phoneNumber || null
+		};
+
+		// Format emergency contacts
+		const formattedEmergencyContacts = emergencyContactsList.map((contact) => ({
+			id: (contact as unknown as IEmergencyContact)._id?.toString() || '',
+			studentId: (contact as unknown as IEmergencyContact).studentId?.toString() || '',
+			name: (contact as unknown as IEmergencyContact).name || '',
+			relationship: (contact as unknown as IEmergencyContact).relationship || 'other',
+			phoneNumber: (contact as unknown as IEmergencyContact).phoneNumber || '',
+			alternatePhone: (contact as unknown as IEmergencyContact).alternatePhone || null,
+			email: (contact as unknown as IEmergencyContact).email || null,
+			address: (contact as unknown as IEmergencyContact).address || null,
+			isPrimary: (contact as unknown as IEmergencyContact).isPrimary || false,
+			priority: (contact as unknown as IEmergencyContact).priority || 0,
+			createdAt: (contact as unknown as IEmergencyContact).createdAt.toISOString(),
+			updatedAt: (contact as unknown as IEmergencyContact).updatedAt.toISOString()
+		}));
+
+		// Format recent visits
+		const formattedRecentVisits = recentVisits.map((visit) => ({
+			id: (visit as unknown as IClinicVisit)._id?.toString() || '',
+			visitNumber: (visit as unknown as IClinicVisit).visitNumber || 0,
+			visitType: (visit as unknown as IClinicVisit).visitType,
+			status: (visit as unknown as IClinicVisit).status,
+			severity: (visit as unknown as IClinicVisit).severity,
+			checkInTime: (visit as unknown as IClinicVisit).checkInTime.toISOString(),
+			checkOutTime: (visit as unknown as IClinicVisit).checkOutTime?.toISOString() || null,
+			chiefComplaint: (visit as unknown as IClinicVisit).chiefComplaint || '',
+			diagnosis: (visit as unknown as IClinicVisit).diagnosis || null,
+			treatment: (visit as unknown as IClinicVisit).treatment || null,
+			isEmergency: (visit as unknown as IClinicVisit).isEmergency || false,
+			parentNotified: (visit as unknown as IClinicVisit).parentNotified || false,
+			// Staff member who attended
+			attendedByFirstName:
+				(visit as unknown as IClinicVisit & { attendedById: IUser }).attendedById?.firstName ||
+				null,
+			attendedByLastName:
+				(visit as unknown as IClinicVisit & { attendedById: IUser }).attendedById?.lastName || null,
+			attendedByRole:
+				(visit as unknown as IClinicVisit & { attendedById: IUser }).attendedById?.role || null
 		}));
 
 		return {
-			student: {
-				...student,
-				dateOfBirth: student.dateOfBirth.toISOString(),
-				enrollmentDate: student.enrollmentDate.toISOString(),
-				createdAt: student.createdAt.toISOString(),
-				updatedAt: student.updatedAt.toISOString()
-			},
-			emergencyContacts: emergencyContactsList.map((contact) => ({
-				...contact,
-				createdAt: contact.createdAt.toISOString(),
-				updatedAt: contact.updatedAt.toISOString()
-			})),
-			recentVisits: recentVisits.map((visit) => ({
-				...visit,
-				checkInTime: visit.checkInTime.toISOString(),
-				checkOutTime: visit.checkOutTime?.toISOString() || null
-			})),
+			student: formattedStudent,
+			emergencyContacts: formattedEmergencyContacts,
+			recentVisits: formattedRecentVisits,
 			visitStats,
 			availableNurses: formattedNurses
 		};
@@ -151,6 +175,9 @@ export const load: PageServerLoad = async ({ params }) => {
 export const actions: Actions = {
 	createVisit: async ({ request, params }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 			const studentId = params.id;
 
@@ -203,11 +230,7 @@ export const actions: Actions = {
 			}
 
 			// Verify student exists
-			const [student] = await db
-				.select({ id: students.id })
-				.from(students)
-				.where(eq(students.studentId, studentId))
-				.limit(1);
+			const student = await Student.findOne({ studentId }).select('_id').lean();
 
 			if (!student) {
 				return fail(400, {
@@ -216,11 +239,7 @@ export const actions: Actions = {
 			}
 
 			// Verify nurse exists
-			const [nurse] = await db
-				.select({ id: users.id })
-				.from(users)
-				.where(eq(users.id, visitData.nurseId))
-				.limit(1);
+			const nurse = await User.findById(visitData.nurseId).select('_id').lean();
 
 			if (!nurse) {
 				return fail(400, {
@@ -229,32 +248,29 @@ export const actions: Actions = {
 			}
 
 			// Create the visit
-			const [newVisit] = await db
-				.insert(clinicVisits)
-				.values({
-					studentId: student.id,
-					attendedById: visitData.nurseId,
-					visitType: visitData.visitType as
-						| 'emergency'
-						| 'illness'
-						| 'injury'
-						| 'medication'
-						| 'checkup'
-						| 'mental_health'
-						| 'other',
-					severity: visitData.severity as 'low' | 'medium' | 'high' | 'critical',
-					isEmergency: visitData.isEmergency,
-					chiefComplaint: visitData.reason,
-					symptoms: visitData.details || null,
-					medicationGiven: visitData.medicationsGiven || null,
-					status: 'active',
-					parentNotified: visitData.isEmergency // Auto-notify parents for emergency visits
-				})
-				.returning({ id: clinicVisits.id });
+			const newVisit = await ClinicVisit.create({
+				studentId: (student as unknown as IStudent)._id,
+				attendedById: visitData.nurseId,
+				visitType: visitData.visitType as
+					| 'emergency'
+					| 'illness'
+					| 'injury'
+					| 'medication'
+					| 'checkup'
+					| 'mental_health'
+					| 'other',
+				severity: visitData.severity as 'low' | 'medium' | 'high' | 'critical',
+				isEmergency: visitData.isEmergency,
+				chiefComplaint: visitData.reason,
+				symptoms: visitData.details || null,
+				medicationGiven: visitData.medicationsGiven || null,
+				status: 'active',
+				parentNotified: visitData.isEmergency // Auto-notify parents for emergency visits
+			});
 
 			return {
 				success: true,
-				visitId: newVisit.id
+				visitId: newVisit._id.toString()
 			};
 		} catch (error) {
 			console.error('Error creating visit:', error);
@@ -266,6 +282,9 @@ export const actions: Actions = {
 
 	sendEmergencyContactMail: async ({ request, params }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 			const studentId = params.id;
 
@@ -297,16 +316,9 @@ export const actions: Actions = {
 			}
 
 			// Verify student exists
-			const [student] = await db
-				.select({
-					id: students.id,
-					firstName: students.firstName,
-					lastName: students.lastName,
-					studentId: students.studentId
-				})
-				.from(students)
-				.where(eq(students.studentId, studentId))
-				.limit(1);
+			const student = await Student.findOne({ studentId })
+				.select('_id firstName lastName studentId')
+				.lean();
 
 			if (!student) {
 				return fail(400, {
@@ -315,16 +327,9 @@ export const actions: Actions = {
 			}
 
 			// Verify emergency contact exists and belongs to this student
-			const [contact] = await db
-				.select({
-					id: emergencyContacts.id,
-					name: emergencyContacts.name,
-					relationship: emergencyContacts.relationship,
-					email: emergencyContacts.email
-				})
-				.from(emergencyContacts)
-				.where(eq(emergencyContacts.id, mailData.contactId))
-				.limit(1);
+			const contact = await EmergencyContact.findById(mailData.contactId)
+				.select('_id name relationship email studentId')
+				.lean();
 
 			if (!contact) {
 				return fail(400, {
@@ -332,7 +337,16 @@ export const actions: Actions = {
 				});
 			}
 
-			if (!contact.email) {
+			if (
+				(contact as unknown as IEmergencyContact).studentId?.toString() !==
+				(student as unknown as IStudent)._id?.toString()
+			) {
+				return fail(400, {
+					error: 'Emergency contact does not belong to this student'
+				});
+			}
+
+			if (!(contact as unknown as IEmergencyContact).email) {
 				return fail(400, {
 					error: 'This contact does not have an email address on file'
 				});
@@ -340,9 +354,9 @@ export const actions: Actions = {
 
 			// Create the email message with context
 			const emailContent = `
-Dear ${contact.name},
+Dear ${(contact as unknown as IEmergencyContact).name},
 
-This is an important message regarding ${student.firstName} ${student.lastName} (Student ID: ${student.studentId}).
+This is an important message regarding ${(student as unknown as IStudent).firstName} ${(student as unknown as IStudent).lastName} (Student ID: ${(student as unknown as IStudent).studentId}).
 
 ${mailData.message}
 
@@ -355,11 +369,15 @@ School Health Office
 			`.trim();
 
 			// Send the email
-			await sendMailMessage(contact.email, emailContent, mailData.subject);
+			await sendMailMessage(
+				(contact as unknown as IEmergencyContact).email!,
+				emailContent,
+				mailData.subject
+			);
 
 			return {
 				success: true,
-				message: `Email sent successfully to ${contact.name} (${contact.email})`
+				message: `Email sent successfully to ${(contact as unknown as IEmergencyContact).name} (${(contact as unknown as IEmergencyContact).email})`
 			};
 		} catch (error) {
 			console.error('Error sending emergency contact mail:', error);
@@ -371,6 +389,9 @@ School Health Office
 
 	sendEmail: async ({ request, params }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 			const studentId = params.id;
 
@@ -409,18 +430,9 @@ School Health Office
 			}
 
 			// Verify student exists
-			const [student] = await db
-				.select({
-					id: students.id,
-					firstName: students.firstName,
-					lastName: students.lastName,
-					studentId: students.studentId,
-					email: students.email,
-					doctorId: students.doctorId
-				})
-				.from(students)
-				.where(eq(students.studentId, studentId))
-				.limit(1);
+			const student = await Student.findOne({ studentId })
+				.select('_id firstName lastName studentId email doctorId')
+				.lean();
 
 			if (!student) {
 				return fail(400, {
@@ -434,29 +446,25 @@ School Health Office
 			// Handle different recipient types
 			if (emailData.recipientType === 'emergency_contact') {
 				// Verify emergency contact exists and belongs to this student
-				const [contact] = await db
-					.select({
-						id: emergencyContacts.id,
-						name: emergencyContacts.name,
-						relationship: emergencyContacts.relationship,
-						email: emergencyContacts.email,
-						studentId: emergencyContacts.studentId
-					})
-					.from(emergencyContacts)
-					.where(eq(emergencyContacts.id, emailData.recipientId))
-					.limit(1);
+				const contact = await EmergencyContact.findById(emailData.recipientId)
+					.select('_id name relationship email studentId')
+					.lean();
 
-				if (!contact || contact.studentId !== student.id) {
+				if (
+					!contact ||
+					(contact as unknown as IEmergencyContact).studentId?.toString() !==
+						(student as unknown as IStudent)._id?.toString()
+				) {
 					return fail(400, {
 						error: 'Emergency contact not found or does not belong to this student'
 					});
 				}
 
-				recipientName = contact.name;
+				recipientName = (contact as unknown as IEmergencyContact).name;
 				emailContent = `
-Dear ${contact.name},
+Dear ${(contact as unknown as IEmergencyContact).name},
 
-This is an important message regarding ${student.firstName} ${student.lastName} (Student ID: ${student.studentId}).
+This is an important message regarding ${(student as unknown as IStudent).firstName} ${(student as unknown as IStudent).lastName} (Student ID: ${(student as unknown as IStudent).studentId}).
 
 ${emailData.message}
 
@@ -469,15 +477,15 @@ School Health Office
 				`.trim();
 			} else if (emailData.recipientType === 'student') {
 				// Verify email matches student
-				if (emailData.recipientEmail !== student.email) {
+				if (emailData.recipientEmail !== (student as unknown as IStudent).email) {
 					return fail(400, {
 						error: 'Email address does not match student record'
 					});
 				}
 
-				recipientName = `${student.firstName} ${student.lastName}`;
+				recipientName = `${(student as unknown as IStudent).firstName} ${(student as unknown as IStudent).lastName}`;
 				emailContent = `
-Dear ${student.firstName},
+Dear ${(student as unknown as IStudent).firstName},
 
 This is an important message from the school health office.
 
@@ -492,41 +500,33 @@ School Health Office
 				`.trim();
 			} else if (emailData.recipientType === 'doctor') {
 				// Verify doctor is assigned to this student
-				if (!student.doctorId) {
+				if (!(student as unknown as IStudent).doctorId) {
 					return fail(400, {
 						error: 'No doctor assigned to this student'
 					});
 				}
 
-				const [doctor] = await db
-					.select({
-						id: users.id,
-						firstName: users.firstName,
-						lastName: users.lastName,
-						email: users.email,
-						role: users.role
-					})
-					.from(users)
-					.where(eq(users.id, student.doctorId))
-					.limit(1);
+				const doctor = await User.findById((student as unknown as IStudent).doctorId)
+					.select('_id firstName lastName email role')
+					.lean();
 
-				if (!doctor || doctor.role !== 'doctor') {
+				if (!doctor || (doctor as unknown as IUser).role !== 'doctor') {
 					return fail(400, {
 						error: 'Assigned doctor not found'
 					});
 				}
 
-				if (emailData.recipientEmail !== doctor.email) {
+				if (emailData.recipientEmail !== (doctor as unknown as IUser).email) {
 					return fail(400, {
 						error: 'Email address does not match doctor record'
 					});
 				}
 
-				recipientName = `Dr. ${doctor.firstName} ${doctor.lastName}`;
+				recipientName = `Dr. ${(doctor as unknown as IUser).firstName} ${(doctor as unknown as IUser).lastName}`;
 				emailContent = `
-Dear Dr. ${doctor.lastName},
+Dear Dr. ${(doctor as unknown as IUser).lastName},
 
-This is an important message regarding your patient ${student.firstName} ${student.lastName} (Student ID: ${student.studentId}).
+This is an important message regarding your patient ${(student as unknown as IStudent).firstName} ${(student as unknown as IStudent).lastName} (Student ID: ${(student as unknown as IStudent).studentId}).
 
 ${emailData.message}
 
@@ -556,6 +556,9 @@ School Health Office
 
 	sendReferralEmail: async ({ request, params }) => {
 		try {
+			// Ensure MongoDB connection
+			await connectMongoDB();
+
 			const formData = await request.formData();
 			const studentId = params.id;
 
@@ -592,21 +595,9 @@ School Health Office
 			}
 
 			// Get student information
-			const [student] = await db
-				.select({
-					id: students.id,
-					studentId: students.studentId,
-					firstName: students.firstName,
-					lastName: students.lastName,
-					dateOfBirth: students.dateOfBirth,
-					gender: students.gender,
-					grade: students.grade,
-					section: students.section,
-					address: students.address
-				})
-				.from(students)
-				.where(eq(students.studentId, studentId))
-				.limit(1);
+			const student = await Student.findOne({ studentId })
+				.select('_id studentId firstName lastName dateOfBirth gender grade section address')
+				.lean();
 
 			if (!student) {
 				return fail(400, {
@@ -616,7 +607,7 @@ School Health Office
 
 			// Calculate student age
 			const today = new Date();
-			const birthDate = new Date(student.dateOfBirth);
+			const birthDate = new Date((student as unknown as IStudent).dateOfBirth);
 			let age = today.getFullYear() - birthDate.getFullYear();
 			const monthDiff = today.getMonth() - birthDate.getMonth();
 			if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
@@ -639,12 +630,12 @@ Date: ${emailData.referralDate}
 
 PATIENT INFORMATION
 -------------------
-Name: ${student.firstName} ${student.lastName}
+Name: ${(student as unknown as IStudent).firstName} ${(student as unknown as IStudent).lastName}
 Age: ${age} years old
-Student ID: ${student.studentId}
-Grade/Section: ${student.grade}${student.section ? ` (${student.section})` : ''}
-Gender: ${student.gender}
-${student.address ? `Address: ${student.address}` : ''}
+Student ID: ${(student as unknown as IStudent).studentId}
+Grade/Section: ${(student as unknown as IStudent).grade}${(student as unknown as IStudent).section ? ` (${(student as unknown as IStudent).section})` : ''}
+Gender: ${(student as unknown as IStudent).gender}
+${(student as unknown as IStudent).address ? `Address: ${(student as unknown as IStudent).address}` : ''}
 
 CHIEF COMPLAINT/HISTORY
 -----------------------

@@ -1,23 +1,18 @@
-import { db } from './index';
-import { clinicVisits } from './schema';
+import { connectMongoDB } from './index';
+import { ClinicVisit, type IClinicVisit } from './schema';
 
-export type NewClinicVisit = typeof clinicVisits.$inferInsert;
-export type ClinicVisit = typeof clinicVisits.$inferSelect;
+export type NewClinicVisit = Omit<IClinicVisit, '_id' | 'visitNumber' | 'createdAt' | 'updatedAt'>;
+export type ClinicVisitDocument = IClinicVisit;
 
 /**
  * Create a new clinic visit with auto-incrementing visit number
  * @param visitData - The clinic visit data (without visitNumber, visitNumber will auto-increment)
  * @returns The created clinic visit
  */
-export async function createClinicVisit(
-	visitData: Omit<NewClinicVisit, 'visitNumber'>
-): Promise<ClinicVisit> {
-	// The visitNumber will auto-increment as it's the primary key with autoIncrement: true
-	const newVisit = {
-		id: crypto.randomUUID(),
-		...visitData
-	};
+export async function createClinicVisit(visitData: NewClinicVisit): Promise<IClinicVisit> {
+	await connectMongoDB();
 
-	const result = await db.insert(clinicVisits).values(newVisit).returning();
-	return result[0];
+	const newVisit = new ClinicVisit(visitData);
+	const result = await newVisit.save();
+	return result;
 }
