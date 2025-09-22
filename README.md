@@ -13,29 +13,70 @@ A simple and efficient School Clinic Management System that uses QR code technol
 
 ## Getting Started
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+### Prerequisites
 
-## Creating a project
+- Node.js (v18 or higher)
+- MongoDB (local installation or MongoDB Atlas)
+- pnpm (recommended) or npm
 
-If you're seeing this, you've probably already done this step. Congrats!
+### Database Setup
+
+This project uses MongoDB with Mongoose. You'll need to set up a MongoDB instance:
+
+**Option 1: Local MongoDB**
+
+1. Install MongoDB on your machine
+2. Start the MongoDB service
+3. Create a database named `medisync`
+
+**Option 2: MongoDB Atlas (Cloud)**
+
+1. Create a free account at [MongoDB Atlas](https://www.mongodb.com/atlas)
+2. Create a new cluster
+3. Get your connection string
+
+### Environment Configuration
+
+1. Copy `.env.example` to `.env`:
+
+   ```sh
+   cp .env.example .env
+   ```
+
+2. Update the `.env` file with your MongoDB connection string:
+
+   ```env
+   MONGODB_URI="mongodb://localhost:27017/medisync"
+   # or for MongoDB Atlas:
+   # MONGODB_URI="mongodb+srv://username:password@cluster.mongodb.net/medisync"
+
+   SMTP2GO_API_KEY="your-smtp2go-api-key"
+   SMTP2GO_SENDER_EMAIL="your-sender-email@example.com"
+   ```
+
+### Installation
+
+Install dependencies with pnpm (recommended):
 
 ```sh
-# create a new project in the current directory
-npx sv create
+pnpm install
+```
 
-# create a new project in my-app
-npx sv create my-app
+Or with npm:
+
+```sh
+npm install
 ```
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Start the development server:
 
 ```sh
-npm run dev
+pnpm run dev
 
 # or start the server and open the app in a new browser tab
-npm run dev -- --open
+pnpm run dev -- --open
 ```
 
 ## Building
@@ -43,9 +84,24 @@ npm run dev -- --open
 To create a production version of your app:
 
 ```sh
-npm run build
+pnpm run build
 ```
 
-You can preview the production build with `npm run preview`.
+You can preview the production build with `pnpm run preview`.
+
+## Database Migration
+
+This project has been migrated from SQLite to MongoDB using Mongoose. Key changes include:
+
+- **Database**: Now uses MongoDB instead of SQLite
+- **ORM**: Uses Mongoose instead of Drizzle ORM
+- **Environment Variables**: `MONGODB_URI` instead of `DATABASE_URL`
+- **Schema**: All models are defined using Mongoose schemas with proper TypeScript interfaces
+
+All database operations have been updated to use Mongoose methods such as:
+
+- `Model.find()`, `Model.findById()`, `Model.create()`
+- Population for relationships instead of SQL joins
+- MongoDB-native features like ObjectIds and automatic timestamps
 
 > To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.

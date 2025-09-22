@@ -1,4 +1,5 @@
 import { goto } from '$app/navigation';
+import { navigating } from '$app/state';
 import { app } from '$lib/states/app.svelte';
 import { source, type Source } from 'sveltekit-sse';
 
@@ -21,7 +22,11 @@ class Client {
 				}
 
 				if (v && typeof v === 'object' && 'studentId' in v) {
-					goto(`/students/${v.studentId}`);
+					const id = v.studentId as string;
+					navigating.complete?.then(() => {
+						// eslint-disable-next-line svelte/no-navigation-without-resolve
+						goto(`/students/${id}`).catch(console.warn);
+					});
 				}
 			});
 

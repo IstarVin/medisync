@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { navigating } from '$app/state';
 	import QrScanner from '$lib/components/qr-scanner.svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import Label from '$lib/components/ui/label/label.svelte';
@@ -77,7 +78,11 @@
 			if (response.ok) {
 				if (app.qrEnabled) {
 					// Navigate to student profile
-					await goto(`/students/${studentId}`);
+					try {
+						await navigating.complete;
+
+						await goto(`/students/${studentId}`);
+					} catch {}
 				}
 			} else {
 				console.error('Failed to process QR code');
