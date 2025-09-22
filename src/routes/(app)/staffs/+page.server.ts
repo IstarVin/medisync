@@ -1,10 +1,12 @@
 import { addStaffSchema, updateStaffSchema } from '$lib/schemas/staff.js';
 import { connectMongoDB, User } from '$lib/server/db/index.js';
+import { sendStaffCredentials } from '$lib/server/mail.js';
 import { hash } from '@node-rs/argon2';
 import { fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
+	// const data = await parent();
 	try {
 		// Ensure MongoDB connection
 		await connectMongoDB();
@@ -72,7 +74,16 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	addStaff: async ({ request }) => {
+	addStaff: async ({ request, locals }) => {
+		// Check if user is admin
+		if (!locals.user || locals.user.role !== 'admin') {
+			return fail(403, {
+				errors: {
+					general: ['Access denied. Only administrators can add staff members.']
+				}
+			});
+		}
+
 		try {
 			// Ensure MongoDB connection
 			await connectMongoDB();
@@ -121,11 +132,22 @@ export const actions: Actions = {
 				});
 			}
 
-			// Generate a temporary password (in production, you might want to send this via email)
-			const temporaryPassword = crypto.randomUUID(); // You should generate a random password
-			console.log(
-				`Temp Password for ${validatedData.firstName} ${validatedData.lastName}: ${temporaryPassword}`
-			);
+			// Generate a temporary password and send it via email
+			const temporaryPassword = crypto.randomUUID();
+
+			// Send credentials via email
+			try {
+				await sendStaffCredentials(
+					validatedData.email,
+					validatedData.firstName,
+					validatedData.lastName,
+					validatedData.role,
+					temporaryPassword
+				);
+			} catch (emailError) {
+				console.error('Failed to send credentials email:', emailError);
+				// Continue with user creation even if email fails
+			}
 
 			const passwordHash = await hash(temporaryPassword, {
 				memoryCost: 19456,
@@ -152,8 +174,7 @@ export const actions: Actions = {
 
 			return {
 				success: true,
-				message: `Staff member ${validatedData.firstName} ${validatedData.lastName} has been added successfully.`
-				// temporaryPassword // In production, don't return this - send via email instead
+				message: `Staff member ${validatedData.firstName} ${validatedData.lastName} has been added successfully. Login credentials have been sent to their email address.`
 			};
 		} catch (error) {
 			console.error('Error adding staff member:', error);
@@ -165,7 +186,16 @@ export const actions: Actions = {
 		}
 	},
 
-	updateStaff: async ({ request }) => {
+	updateStaff: async ({ request, locals }) => {
+		// Check if user is admin
+		if (!locals.user || locals.user.role !== 'admin') {
+			return fail(403, {
+				errors: {
+					general: ['Access denied. Only administrators can update staff members.']
+				}
+			});
+		}
+
 		try {
 			// Ensure MongoDB connection
 			await connectMongoDB();
@@ -234,7 +264,16 @@ export const actions: Actions = {
 		}
 	},
 
-	deleteStaff: async ({ request }) => {
+	deleteStaff: async ({ request, locals }) => {
+		// Check if user is admin
+		if (!locals.user || locals.user.role !== 'admin') {
+			return fail(403, {
+				errors: {
+					general: ['Access denied. Only administrators can deactivate staff members.']
+				}
+			});
+		}
+
 		try {
 			// Ensure MongoDB connection
 			await connectMongoDB();
@@ -279,7 +318,16 @@ export const actions: Actions = {
 		}
 	},
 
-	activateStaff: async ({ request }) => {
+	activateStaff: async ({ request, locals }) => {
+		// Check if user is admin
+		if (!locals.user || locals.user.role !== 'admin') {
+			return fail(403, {
+				errors: {
+					general: ['Access denied. Only administrators can activate staff members.']
+				}
+			});
+		}
+
 		try {
 			// Ensure MongoDB connection
 			await connectMongoDB();

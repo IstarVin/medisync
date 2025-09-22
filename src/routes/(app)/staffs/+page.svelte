@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { invalidateAll } from '$app/navigation';
+	import { page } from '$app/stores';
 	import StaffFormModal from '$lib/components/staff-form-modal.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -42,6 +43,9 @@
 	};
 
 	let { data } = $props();
+
+	// Check if current user is admin using page store to access parent layout data
+	const isAdmin = $derived($page.data.user?.role === 'admin');
 
 	// Modal state
 	let staffModalOpen = $state(false);
@@ -229,10 +233,12 @@
 			<h1 class="text-3xl font-bold tracking-tight">Staffs</h1>
 			<p class="text-muted-foreground">Manage nurses, doctors, and other staff members</p>
 		</div>
-		<Button onclick={openAddModal} class="gap-2">
-			<UserPlus class="size-4" />
-			Add Staff Member
-		</Button>
+		{#if isAdmin}
+			<Button onclick={openAddModal} class="gap-2">
+				<UserPlus class="size-4" />
+				Add Staff Member
+			</Button>
+		{/if}
 	</div>
 
 	<!-- Statistics Cards -->
@@ -356,7 +362,9 @@
 							<Table.Head>Role</Table.Head>
 							<Table.Head>Contact</Table.Head>
 							<Table.Head>Joined</Table.Head>
-							<Table.Head class="w-[50px]"></Table.Head>
+							{#if isAdmin}
+								<Table.Head class="w-[50px]"></Table.Head>
+							{/if}
 						</Table.Row>
 					</Table.Header>
 					<Table.Body>
@@ -431,47 +439,51 @@
 									</span>
 								</Table.Cell>
 								<Table.Cell>
-									<DropdownMenu.Root>
-										<DropdownMenu.Trigger>
-											<Button variant="ghost" size="sm" class="size-8 p-0">
-												<MoreHorizontal class="size-4" />
-												<span class="sr-only">Actions</span>
-											</Button>
-										</DropdownMenu.Trigger>
-										<DropdownMenu.Content align="end">
-											<DropdownMenu.Item
-												class="cursor-pointer"
-												onclick={() => openEditModal(staff)}
-											>
-												<Edit class="mr-2 size-4" />
-												Edit
-											</DropdownMenu.Item>
-											{#if staff.isActive}
+									{#if isAdmin}
+										<DropdownMenu.Root>
+											<DropdownMenu.Trigger>
+												<Button variant="ghost" size="sm" class="size-8 p-0">
+													<MoreHorizontal class="size-4" />
+													<span class="sr-only">Actions</span>
+												</Button>
+											</DropdownMenu.Trigger>
+											<DropdownMenu.Content align="end">
 												<DropdownMenu.Item
-													onclick={() => handleStaffAction('deleteStaff', staff.id)}
-													disabled={submitting}
-													class="cursor-pointer text-red-600"
+													class="cursor-pointer"
+													onclick={() => openEditModal(staff)}
 												>
-													<UserMinus class="mr-2 size-4" />
-													Deactivate
+													<Edit class="mr-2 size-4" />
+													Edit
 												</DropdownMenu.Item>
-											{:else}
-												<DropdownMenu.Item
-													onclick={() => handleStaffAction('activateStaff', staff.id)}
-													disabled={submitting}
-													class="cursor-pointer text-green-600"
-												>
-													<UserPlus class="mr-2 size-4" />
-													Activate
-												</DropdownMenu.Item>
-											{/if}
-										</DropdownMenu.Content>
-									</DropdownMenu.Root>
+												{#if staff.isActive}
+													<DropdownMenu.Item
+														onclick={() => handleStaffAction('deleteStaff', staff.id)}
+														disabled={submitting}
+														class="cursor-pointer text-red-600"
+													>
+														<UserMinus class="mr-2 size-4" />
+														Deactivate
+													</DropdownMenu.Item>
+												{:else}
+													<DropdownMenu.Item
+														onclick={() => handleStaffAction('activateStaff', staff.id)}
+														disabled={submitting}
+														class="cursor-pointer text-green-600"
+													>
+														<UserPlus class="mr-2 size-4" />
+														Activate
+													</DropdownMenu.Item>
+												{/if}
+											</DropdownMenu.Content>
+										</DropdownMenu.Root>
+									{:else}
+										<span class="text-sm text-muted-foreground">-</span>
+									{/if}
 								</Table.Cell>
 							</Table.Row>
 						{:else}
 							<Table.Row>
-								<Table.Cell colspan={7} class="text-center py-8">
+								<Table.Cell colspan={isAdmin ? 5 : 4} class="text-center py-8">
 									<div class="flex flex-col items-center gap-2">
 										<Users class="size-8 text-muted-foreground" />
 										<p class="text-muted-foreground">
@@ -479,7 +491,7 @@
 												? 'No staff members match your filters'
 												: 'No staff members found'}
 										</p>
-										{#if !searchQuery && roleFilter === 'all' && statusFilter === 'all'}
+										{#if !searchQuery && roleFilter === 'all' && statusFilter === 'all' && isAdmin}
 											<Button onclick={openAddModal} size="sm" class="gap-2">
 												<Plus class="size-4" />
 												Add First Staff Member

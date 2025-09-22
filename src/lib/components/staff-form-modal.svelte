@@ -42,7 +42,7 @@
 	const roleOptions = [
 		{ value: 'nurse', label: 'Nurse' },
 		{ value: 'doctor', label: 'Doctor' },
-		{ value: 'admin', label: 'Admin' },
+		// { value: 'admin', label: 'Admin' }
 		{ value: 'staff', label: 'Staff' }
 	];
 
