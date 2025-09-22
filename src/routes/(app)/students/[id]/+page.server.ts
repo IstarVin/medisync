@@ -4,12 +4,27 @@ import {
 	EmergencyContact,
 	Student,
 	User,
-	type IClinicVisit,
 	type IEmergencyContact,
 	type IStudent,
 	type IUser
 } from '$lib/server/db/index.js';
 import { sendMailMessage } from '$lib/server/mail.js';
+import {
+	calculateVisitStats,
+	formatClinicVisit,
+	formatEmergencyContact,
+	formatStudent,
+	formatUser
+} from '$lib/utils/formatters.js';
+import { logInfo, logWarn, withPerformanceLogging } from '$lib/utils/logger.js';
+import { ERROR_MESSAGES } from '$lib/utils/student-constants.js';
+import {
+	handleValidationError,
+	validateEmailData,
+	validateEmergencyContactEmailData,
+	validateReferralEmailData,
+	validateVisitData
+} from '$lib/utils/validation.js';
 import { error, fail, isHttpError } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -31,19 +46,30 @@ export const load: PageServerLoad = async ({ params }) => {
 
 		if (!student) {
 			throw error(404, {
-				message: 'Student not found'
+				message: ERROR_MESSAGES.STUDENT_NOT_FOUND
+			});
+		}
+
+		// Handle case where student might be an array (shouldn't happen with findOne but just in case)
+		const studentDoc = Array.isArray(student) ? student[0] : student;
+
+		if (!studentDoc) {
+			throw error(404, {
+				message: ERROR_MESSAGES.STUDENT_NOT_FOUND
 			});
 		}
 
 		// Fetch all emergency contacts for this student
 		const emergencyContactsList = await EmergencyContact.find({
-			studentId: (student as unknown as IStudent)._id
+			studentId: (studentDoc as unknown as IStudent)._id
 		})
 			.sort({ priority: 1, createdAt: 1 })
 			.lean();
 
 		// Fetch recent clinic visits (last 10 visits)
-		const recentVisits = await ClinicVisit.find({ studentId: (student as unknown as IStudent)._id })
+		const recentVisits = await ClinicVisit.find({
+			studentId: (studentDoc as unknown as IStudent)._id
+		})
 			.populate({
 				path: 'attendedById',
 				model: User,
@@ -54,18 +80,7 @@ export const load: PageServerLoad = async ({ params }) => {
 			.lean();
 
 		// Calculate visit statistics
-		const visitStats = {
-			total: recentVisits.length,
-			emergency: recentVisits.filter((v) => v.isEmergency).length,
-			thisMonth: recentVisits.filter((v) => {
-				const visitDate = new Date(v.checkInTime);
-				const now = new Date();
-				return (
-					visitDate.getMonth() === now.getMonth() && visitDate.getFullYear() === now.getFullYear()
-				);
-			}).length,
-			lastVisit: recentVisits[0]?.checkInTime || null
-		};
+		const visitStats = calculateVisitStats(recentVisits);
 
 		// Fetch available nurses for the form
 		const availableNurses = await User.find({ role: 'nurse' })
@@ -73,84 +88,17 @@ export const load: PageServerLoad = async ({ params }) => {
 			.sort({ firstName: 1, lastName: 1 })
 			.lean();
 
-		// Format nurse names for display
-		const formattedNurses = availableNurses.map((nurse) => ({
-			id: (nurse as unknown as IUser)._id?.toString() || '',
-			name: `${(nurse as unknown as IUser).firstName} ${(nurse as unknown as IUser).lastName}`
-		}));
-
-		// Format student data
-		const formattedStudent = {
-			id: (student as unknown as IStudent)._id?.toString() || '',
-			studentId: (student as unknown as IStudent).studentId || '',
-			qrCodeId: (student as unknown as IStudent).qrCodeId || null,
-			firstName: (student as unknown as IStudent).firstName || '',
-			lastName: (student as unknown as IStudent).lastName || '',
-			middleName: (student as unknown as IStudent).middleName || null,
-			email: (student as unknown as IStudent).email || null,
-			dateOfBirth: (student as unknown as IStudent).dateOfBirth.toISOString(),
-			gender: (student as unknown as IStudent).gender,
-			grade: (student as unknown as IStudent).grade || '',
-			section: (student as unknown as IStudent).section || null,
-			address: (student as unknown as IStudent).address || null,
-			chronicHealthConditions: (student as unknown as IStudent).chronicHealthConditions || [],
-			currentMedications: (student as unknown as IStudent).currentMedications || [],
-			healthHistory: (student as unknown as IStudent).healthHistory || null,
-			enrollmentDate: (student as unknown as IStudent).enrollmentDate.toISOString(),
-			isActive: (student as unknown as IStudent).isActive || false,
-			profileUrl: (student as unknown as IStudent).profileUrl || null,
-			createdAt: (student as unknown as IStudent).createdAt.toISOString(),
-			updatedAt: (student as unknown as IStudent).updatedAt.toISOString(),
-			// Doctor information
-			doctorId: (student as unknown as IStudent).doctorId?.toString() || null,
-			doctorFirstName:
-				(student as unknown as IStudent & { doctorId: IUser }).doctorId?.firstName || null,
-			doctorLastName:
-				(student as unknown as IStudent & { doctorId: IUser }).doctorId?.lastName || null,
-			doctorEmail: (student as unknown as IStudent & { doctorId: IUser }).doctorId?.email || null,
-			doctorPhone:
-				(student as unknown as IStudent & { doctorId: IUser }).doctorId?.phoneNumber || null
-		};
-
-		// Format emergency contacts
-		const formattedEmergencyContacts = emergencyContactsList.map((contact) => ({
-			id: (contact as unknown as IEmergencyContact)._id?.toString() || '',
-			studentId: (contact as unknown as IEmergencyContact).studentId?.toString() || '',
-			name: (contact as unknown as IEmergencyContact).name || '',
-			relationship: (contact as unknown as IEmergencyContact).relationship || 'other',
-			phoneNumber: (contact as unknown as IEmergencyContact).phoneNumber || '',
-			alternatePhone: (contact as unknown as IEmergencyContact).alternatePhone || null,
-			email: (contact as unknown as IEmergencyContact).email || null,
-			address: (contact as unknown as IEmergencyContact).address || null,
-			isPrimary: (contact as unknown as IEmergencyContact).isPrimary || false,
-			priority: (contact as unknown as IEmergencyContact).priority || 0,
-			createdAt: (contact as unknown as IEmergencyContact).createdAt.toISOString(),
-			updatedAt: (contact as unknown as IEmergencyContact).updatedAt.toISOString()
-		}));
-
-		// Format recent visits
-		const formattedRecentVisits = recentVisits.map((visit) => ({
-			id: (visit as unknown as IClinicVisit)._id?.toString() || '',
-			visitNumber: (visit as unknown as IClinicVisit).visitNumber || 0,
-			visitType: (visit as unknown as IClinicVisit).visitType,
-			status: (visit as unknown as IClinicVisit).status,
-			severity: (visit as unknown as IClinicVisit).severity,
-			checkInTime: (visit as unknown as IClinicVisit).checkInTime.toISOString(),
-			checkOutTime: (visit as unknown as IClinicVisit).checkOutTime?.toISOString() || null,
-			chiefComplaint: (visit as unknown as IClinicVisit).chiefComplaint || '',
-			diagnosis: (visit as unknown as IClinicVisit).diagnosis || null,
-			treatment: (visit as unknown as IClinicVisit).treatment || null,
-			isEmergency: (visit as unknown as IClinicVisit).isEmergency || false,
-			parentNotified: (visit as unknown as IClinicVisit).parentNotified || false,
-			// Staff member who attended
-			attendedByFirstName:
-				(visit as unknown as IClinicVisit & { attendedById: IUser }).attendedById?.firstName ||
-				null,
-			attendedByLastName:
-				(visit as unknown as IClinicVisit & { attendedById: IUser }).attendedById?.lastName || null,
-			attendedByRole:
-				(visit as unknown as IClinicVisit & { attendedById: IUser }).attendedById?.role || null
-		}));
+		// Format data using utility functions
+		const formattedStudent = formatStudent(studentDoc as Record<string, unknown>);
+		const formattedEmergencyContacts = emergencyContactsList.map((contact) =>
+			formatEmergencyContact(contact as Record<string, unknown>)
+		);
+		const formattedRecentVisits = recentVisits.map((visit) =>
+			formatClinicVisit(visit as Record<string, unknown>)
+		);
+		const formattedNurses = availableNurses.map((nurse) =>
+			formatUser(nurse as Record<string, unknown>)
+		);
 
 		return {
 			student: formattedStudent,
@@ -174,110 +122,67 @@ export const load: PageServerLoad = async ({ params }) => {
 
 export const actions: Actions = {
 	createVisit: async ({ request, params }) => {
-		try {
-			// Ensure MongoDB connection
-			await connectMongoDB();
+		const studentId = params.id;
 
-			const formData = await request.formData();
-			const studentId = params.id;
+		return await withPerformanceLogging(
+			'create_visit',
+			async () => {
+				// Ensure MongoDB connection
+				await connectMongoDB();
 
-			// Extract visit data
-			const visitData = {
-				nurseId: formData.get('nurseId') as string,
-				visitType: formData.get('visitType') as string,
-				severity: formData.get('severity') as string,
-				isEmergency: formData.get('isEmergency') === 'true',
-				reason: formData.get('reason') as string,
-				details: formData.get('details') as string,
-				medicationsGiven: formData.get('medicationsGiven') as string
-			};
+				const formData = await request.formData();
 
-			// Validate required fields
-			if (!visitData.reason.trim()) {
-				return fail(400, {
-					error: 'Reason for visit is required'
+				// Validate input data
+				const validation = validateVisitData(formData);
+				if (!validation.isValid) {
+					logWarn('Visit validation failed', { studentId, error: validation.error });
+					return handleValidationError(validation.error!);
+				}
+
+				const visitData = validation.data!;
+
+				// Verify student exists
+				const student = await Student.findOne({ studentId }).select('_id').lean();
+				if (!student) {
+					logWarn('Student not found for visit creation', { studentId });
+					return handleValidationError(ERROR_MESSAGES.STUDENT_NOT_FOUND);
+				}
+
+				// Verify nurse exists
+				const nurse = await User.findById(visitData.nurseId).select('_id').lean();
+				if (!nurse) {
+					logWarn('Nurse not found for visit creation', { studentId, nurseId: visitData.nurseId });
+					return handleValidationError(ERROR_MESSAGES.NURSE_NOT_FOUND);
+				}
+
+				// Create the visit
+				const newVisit = await ClinicVisit.create({
+					studentId: (student as unknown as IStudent)._id,
+					attendedById: visitData.nurseId,
+					visitType: visitData.visitType,
+					severity: visitData.severity,
+					isEmergency: visitData.isEmergency,
+					chiefComplaint: visitData.reason,
+					symptoms: visitData.details || null,
+					medicationGiven: visitData.medicationsGiven || null,
+					status: 'active',
+					parentNotified: visitData.isEmergency // Auto-notify parents for emergency visits
 				});
-			}
 
-			if (!visitData.nurseId) {
-				return fail(400, {
-					error: 'Nurse selection is required'
+				logInfo('Visit created successfully', {
+					studentId,
+					visitId: newVisit._id.toString(),
+					visitType: visitData.visitType,
+					isEmergency: visitData.isEmergency
 				});
-			}
 
-			// Validate visit type
-			const validVisitTypes = [
-				'emergency',
-				'illness',
-				'injury',
-				'medication',
-				'checkup',
-				'mental_health',
-				'other'
-			];
-			if (!validVisitTypes.includes(visitData.visitType)) {
-				return fail(400, {
-					error: 'Invalid visit type'
-				});
-			}
-
-			// Validate severity
-			const validSeverityLevels = ['low', 'medium', 'high', 'critical'];
-			if (!validSeverityLevels.includes(visitData.severity)) {
-				return fail(400, {
-					error: 'Invalid severity level'
-				});
-			}
-
-			// Verify student exists
-			const student = await Student.findOne({ studentId }).select('_id').lean();
-
-			if (!student) {
-				return fail(400, {
-					error: 'Student not found'
-				});
-			}
-
-			// Verify nurse exists
-			const nurse = await User.findById(visitData.nurseId).select('_id').lean();
-
-			if (!nurse) {
-				return fail(400, {
-					error: 'Selected nurse not found'
-				});
-			}
-
-			// Create the visit
-			const newVisit = await ClinicVisit.create({
-				studentId: (student as unknown as IStudent)._id,
-				attendedById: visitData.nurseId,
-				visitType: visitData.visitType as
-					| 'emergency'
-					| 'illness'
-					| 'injury'
-					| 'medication'
-					| 'checkup'
-					| 'mental_health'
-					| 'other',
-				severity: visitData.severity as 'low' | 'medium' | 'high' | 'critical',
-				isEmergency: visitData.isEmergency,
-				chiefComplaint: visitData.reason,
-				symptoms: visitData.details || null,
-				medicationGiven: visitData.medicationsGiven || null,
-				status: 'active',
-				parentNotified: visitData.isEmergency // Auto-notify parents for emergency visits
-			});
-
-			return {
-				success: true,
-				visitId: newVisit._id.toString()
-			};
-		} catch (error) {
-			console.error('Error creating visit:', error);
-			return fail(500, {
-				error: 'Failed to create visit. Please try again.'
-			});
-		}
+				return {
+					success: true,
+					visitId: newVisit._id.toString()
+				};
+			},
+			{ studentId, action: 'create_visit' }
+		);
 	},
 
 	sendEmergencyContactMail: async ({ request, params }) => {
@@ -288,32 +193,13 @@ export const actions: Actions = {
 			const formData = await request.formData();
 			const studentId = params.id;
 
-			// Extract form data
-			const mailData = {
-				contactId: formData.get('contactId') as string,
-				contactEmail: formData.get('contactEmail') as string,
-				subject: formData.get('subject') as string,
-				message: formData.get('message') as string
-			};
-
-			// Validate required fields
-			if (!mailData.subject.trim()) {
-				return fail(400, {
-					error: 'Subject is required'
-				});
+			// Validate input data
+			const validation = validateEmergencyContactEmailData(formData);
+			if (!validation.isValid) {
+				return handleValidationError(validation.error!);
 			}
 
-			if (!mailData.message.trim()) {
-				return fail(400, {
-					error: 'Message is required'
-				});
-			}
-
-			if (!mailData.contactEmail.trim()) {
-				return fail(400, {
-					error: 'Contact email is required'
-				});
-			}
+			const mailData = validation.data!;
 
 			// Verify student exists
 			const student = await Student.findOne({ studentId })
@@ -321,9 +207,7 @@ export const actions: Actions = {
 				.lean();
 
 			if (!student) {
-				return fail(400, {
-					error: 'Student not found'
-				});
+				return handleValidationError(ERROR_MESSAGES.STUDENT_NOT_FOUND);
 			}
 
 			// Verify emergency contact exists and belongs to this student
@@ -332,24 +216,18 @@ export const actions: Actions = {
 				.lean();
 
 			if (!contact) {
-				return fail(400, {
-					error: 'Emergency contact not found'
-				});
+				return handleValidationError(ERROR_MESSAGES.CONTACT_NOT_FOUND);
 			}
 
 			if (
 				(contact as unknown as IEmergencyContact).studentId?.toString() !==
 				(student as unknown as IStudent)._id?.toString()
 			) {
-				return fail(400, {
-					error: 'Emergency contact does not belong to this student'
-				});
+				return handleValidationError(ERROR_MESSAGES.CONTACT_MISMATCH);
 			}
 
 			if (!(contact as unknown as IEmergencyContact).email) {
-				return fail(400, {
-					error: 'This contact does not have an email address on file'
-				});
+				return handleValidationError(ERROR_MESSAGES.CONTACT_NO_EMAIL);
 			}
 
 			// Create the email message with context
@@ -379,10 +257,15 @@ School Health Office
 				success: true,
 				message: `Email sent successfully to ${(contact as unknown as IEmergencyContact).name} (${(contact as unknown as IEmergencyContact).email})`
 			};
-		} catch (error) {
-			console.error('Error sending emergency contact mail:', error);
+		} catch (err) {
+			console.error('Error sending emergency contact mail:', err);
+
+			if (isHttpError(err)) {
+				throw err;
+			}
+
 			return fail(500, {
-				error: 'Failed to send email. Please try again.'
+				error: ERROR_MESSAGES.FAILED_TO_SEND_EMAIL
 			});
 		}
 	},
@@ -395,39 +278,13 @@ School Health Office
 			const formData = await request.formData();
 			const studentId = params.id;
 
-			// Extract form data
-			const emailData = {
-				recipientType: formData.get('recipientType') as string,
-				recipientId: formData.get('recipientId') as string,
-				recipientEmail: formData.get('recipientEmail') as string,
-				subject: formData.get('subject') as string,
-				message: formData.get('message') as string
-			};
-
-			// Validate required fields
-			if (!emailData.subject.trim()) {
-				return fail(400, {
-					error: 'Subject is required'
-				});
+			// Validate input data
+			const validation = validateEmailData(formData);
+			if (!validation.isValid) {
+				return handleValidationError(validation.error!);
 			}
 
-			if (!emailData.message.trim()) {
-				return fail(400, {
-					error: 'Message is required'
-				});
-			}
-
-			if (!emailData.recipientEmail.trim()) {
-				return fail(400, {
-					error: 'Recipient email is required'
-				});
-			}
-
-			if (!['emergency_contact', 'student', 'doctor'].includes(emailData.recipientType)) {
-				return fail(400, {
-					error: 'Invalid recipient type'
-				});
-			}
+			const emailData = validation.data!;
 
 			// Verify student exists
 			const student = await Student.findOne({ studentId })
@@ -435,9 +292,7 @@ School Health Office
 				.lean();
 
 			if (!student) {
-				return fail(400, {
-					error: 'Student not found'
-				});
+				return handleValidationError(ERROR_MESSAGES.STUDENT_NOT_FOUND);
 			}
 
 			let recipientName = '';
@@ -455,9 +310,7 @@ School Health Office
 					(contact as unknown as IEmergencyContact).studentId?.toString() !==
 						(student as unknown as IStudent)._id?.toString()
 				) {
-					return fail(400, {
-						error: 'Emergency contact not found or does not belong to this student'
-					});
+					return handleValidationError(ERROR_MESSAGES.CONTACT_MISMATCH);
 				}
 
 				recipientName = (contact as unknown as IEmergencyContact).name;
@@ -478,9 +331,7 @@ School Health Office
 			} else if (emailData.recipientType === 'student') {
 				// Verify email matches student
 				if (emailData.recipientEmail !== (student as unknown as IStudent).email) {
-					return fail(400, {
-						error: 'Email address does not match student record'
-					});
+					return handleValidationError(ERROR_MESSAGES.EMAIL_MISMATCH);
 				}
 
 				recipientName = `${(student as unknown as IStudent).firstName} ${(student as unknown as IStudent).lastName}`;
@@ -501,9 +352,7 @@ School Health Office
 			} else if (emailData.recipientType === 'doctor') {
 				// Verify doctor is assigned to this student
 				if (!(student as unknown as IStudent).doctorId) {
-					return fail(400, {
-						error: 'No doctor assigned to this student'
-					});
+					return handleValidationError(ERROR_MESSAGES.NO_DOCTOR_ASSIGNED);
 				}
 
 				const doctor = await User.findById((student as unknown as IStudent).doctorId)
@@ -511,15 +360,11 @@ School Health Office
 					.lean();
 
 				if (!doctor || (doctor as unknown as IUser).role !== 'doctor') {
-					return fail(400, {
-						error: 'Assigned doctor not found'
-					});
+					return handleValidationError(ERROR_MESSAGES.DOCTOR_NOT_FOUND);
 				}
 
 				if (emailData.recipientEmail !== (doctor as unknown as IUser).email) {
-					return fail(400, {
-						error: 'Email address does not match doctor record'
-					});
+					return handleValidationError(ERROR_MESSAGES.EMAIL_MISMATCH);
 				}
 
 				recipientName = `Dr. ${(doctor as unknown as IUser).firstName} ${(doctor as unknown as IUser).lastName}`;
@@ -546,10 +391,15 @@ School Health Office
 				success: true,
 				message: `Email sent successfully to ${recipientName} (${emailData.recipientEmail})`
 			};
-		} catch (error) {
-			console.error('Error sending email:', error);
+		} catch (err) {
+			console.error('Error sending email:', err);
+
+			if (isHttpError(err)) {
+				throw err;
+			}
+
 			return fail(500, {
-				error: 'Failed to send email. Please try again.'
+				error: ERROR_MESSAGES.FAILED_TO_SEND_EMAIL
 			});
 		}
 	},
@@ -562,37 +412,13 @@ School Health Office
 			const formData = await request.formData();
 			const studentId = params.id;
 
-			// Extract form data
-			const emailData = {
-				studentId: formData.get('studentId') as string,
-				recipientEmail: formData.get('recipientEmail') as string,
-				subject: formData.get('subject') as string,
-				message: formData.get('message') as string,
-				// Referral data
-				referralTo: formData.get('referralTo') as string,
-				referralAddress: formData.get('referralAddress') as string,
-				referralDate: formData.get('referralDate') as string,
-				chiefComplaint: formData.get('chiefComplaint') as string,
-				impression: formData.get('impression') as string,
-				remarks: formData.get('remarks') as string,
-				referringPersonName: formData.get('referringPersonName') as string,
-				referringPersonDesignation: formData.get('referringPersonDesignation') as string
-			};
-
-			// Validate required fields
-			if (!emailData.recipientEmail || !emailData.subject || !emailData.message) {
-				return fail(400, {
-					error: 'All email fields are required'
-				});
+			// Validate input data
+			const validation = validateReferralEmailData(formData);
+			if (!validation.isValid) {
+				return handleValidationError(validation.error!);
 			}
 
-			// Validate email format
-			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-			if (!emailRegex.test(emailData.recipientEmail)) {
-				return fail(400, {
-					error: 'Invalid email address format'
-				});
-			}
+			const emailData = validation.data!;
 
 			// Get student information
 			const student = await Student.findOne({ studentId })
@@ -600,9 +426,7 @@ School Health Office
 				.lean();
 
 			if (!student) {
-				return fail(400, {
-					error: 'Student not found'
-				});
+				return handleValidationError(ERROR_MESSAGES.STUDENT_NOT_FOUND);
 			}
 
 			// Calculate student age
@@ -665,10 +489,15 @@ This medical referral was sent from CareLog School Health Management System.
 				success: true,
 				message: `Medical referral sent successfully to ${emailData.recipientEmail}`
 			};
-		} catch (error) {
-			console.error('Error sending referral email:', error);
+		} catch (err) {
+			console.error('Error sending referral email:', err);
+
+			if (isHttpError(err)) {
+				throw err;
+			}
+
 			return fail(500, {
-				error: 'Failed to send referral email. Please try again.'
+				error: ERROR_MESSAGES.FAILED_TO_SEND_REFERRAL
 			});
 		}
 	}
