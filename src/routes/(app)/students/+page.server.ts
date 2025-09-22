@@ -149,7 +149,16 @@ export const load: PageServerLoad = async () => {
 };
 
 export const actions: Actions = {
-	addStudent: async ({ request }) => {
+	addStudent: async ({ request, locals }) => {
+		// Check if user is admin
+		if (!locals.user || locals.user.role !== 'admin') {
+			return fail(403, {
+				errors: {
+					general: ['Access denied. Only administrators can add students.']
+				}
+			});
+		}
+
 		try {
 			// Ensure MongoDB connection
 			await connectMongoDB();
@@ -481,7 +490,16 @@ export const actions: Actions = {
 		}
 	},
 
-	updateStudent: async ({ request }) => {
+	updateStudent: async ({ request, locals }) => {
+		// Check if user is admin
+		if (!locals.user || locals.user.role !== 'admin') {
+			return fail(403, {
+				errors: {
+					general: ['Access denied. Only administrators can update students.']
+				}
+			});
+		}
+
 		try {
 			// Ensure MongoDB connection
 			await connectMongoDB();
@@ -837,7 +855,16 @@ export const actions: Actions = {
 		}
 	},
 
-	deleteStudent: async ({ request }) => {
+	deleteStudent: async ({ request, locals }) => {
+		// Check if user is admin
+		if (!locals.user || locals.user.role !== 'admin') {
+			return fail(403, {
+				errors: {
+					general: ['Access denied. Only administrators can delete students.']
+				}
+			});
+		}
+
 		try {
 			// Ensure MongoDB connection
 			await connectMongoDB();

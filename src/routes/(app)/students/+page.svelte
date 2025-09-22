@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import StudentFormModal from '$lib/components/student-form-modal.svelte';
 	import { Badge } from '$lib/components/ui/badge/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -31,6 +32,9 @@
 
 	// Props from the load function
 	const { data }: { data: PageData } = $props();
+
+	// Check if current user is admin using page store to access parent layout data
+	const isAdmin = $derived($page.data.user?.role === 'admin');
 
 	// Types based on database schema
 	type StudentStatus = 'active' | 'inactive';
@@ -346,10 +350,12 @@
 				</h2>
 			</div>
 
-			<Button onclick={handleAddStudent} class="w-full md:w-auto">
-				<Plus class="mr-2 size-4" />
-				Add Student
-			</Button>
+			{#if isAdmin}
+				<Button onclick={handleAddStudent} class="w-full md:w-auto">
+					<Plus class="mr-2 size-4" />
+					Add Student
+				</Button>
+			{/if}
 		</div>
 
 		<!-- Search and Filters -->
@@ -487,13 +493,15 @@
 						<Table.Head class="hidden lg:table-cell">Age</Table.Head>
 						<Table.Head class="hidden xl:table-cell">Status</Table.Head>
 						<Table.Head>Medical Conditions</Table.Head>
-						<Table.Head class="w-[50px]"></Table.Head>
+						{#if isAdmin}
+							<Table.Head class="w-[50px]"></Table.Head>
+						{/if}
 					</Table.Row>
 				</Table.Header>
 				<Table.Body>
 					{#if paginatedStudents.length === 0}
 						<Table.Row>
-							<Table.Cell colspan={7} class="py-8 text-center">
+							<Table.Cell colspan={isAdmin ? 7 : 6} class="py-8 text-center">
 								{#if hasActiveFilters}
 									<div class="flex flex-col items-center gap-2">
 										<Search class="size-8 text-muted-foreground" />
@@ -508,10 +516,12 @@
 									<div class="flex flex-col items-center gap-2">
 										<GraduationCap class="size-8 text-muted-foreground" />
 										<div class="text-sm text-muted-foreground">No students enrolled yet</div>
-										<Button onclick={handleAddStudent} class="mt-2">
-											<Plus class="mr-2 size-4" />
-											Add First Student
-										</Button>
+										{#if isAdmin}
+											<Button onclick={handleAddStudent} class="mt-2">
+												<Plus class="mr-2 size-4" />
+												Add First Student
+											</Button>
+										{/if}
 									</div>
 								{:else}
 									<div class="flex flex-col items-center gap-2">
@@ -608,69 +618,73 @@
 									</div>
 								</Table.Cell>
 								<Table.Cell>
-									<DropdownMenu.Root>
-										<DropdownMenu.Trigger>
-											<Button variant="ghost" size="sm" class="size-8 p-0">
-												<MoreHorizontal class="size-4" />
-												<span class="sr-only">Actions</span>
-											</Button>
-										</DropdownMenu.Trigger>
-										<DropdownMenu.Content align="end">
-											<!-- <DropdownMenu.Item
-												class="cursor-pointer"
-												onclick={(e) => {
-													e.stopPropagation();
-													goto('/students/' + student.studentId);
-												}}
-											>
-												<Eye class="mr-2 size-4" />
-												View
-											</DropdownMenu.Item> -->
-											<DropdownMenu.Item
-												class="cursor-pointer"
-												onclick={(e) => {
-													e.stopPropagation();
-													handleEditStudent(student.id);
-												}}
-											>
-												<Edit class="mr-2 size-4" />
-												Edit
-											</DropdownMenu.Item>
-											{#if student.isActive}
-												<DropdownMenu.Item
+									{#if isAdmin}
+										<DropdownMenu.Root>
+											<DropdownMenu.Trigger>
+												<Button variant="ghost" size="sm" class="size-8 p-0">
+													<MoreHorizontal class="size-4" />
+													<span class="sr-only">Actions</span>
+												</Button>
+											</DropdownMenu.Trigger>
+											<DropdownMenu.Content align="end">
+												<!-- <DropdownMenu.Item
+													class="cursor-pointer"
 													onclick={(e) => {
 														e.stopPropagation();
-														handleDeleteStudent(student.id);
+														goto('/students/' + student.studentId);
 													}}
-													class="cursor-pointer text-red-600"
 												>
-													<Trash2 class="mr-2 size-4" />
-													Deactivate
-												</DropdownMenu.Item>
-											{:else}
+													<Eye class="mr-2 size-4" />
+													View
+												</DropdownMenu.Item> -->
 												<DropdownMenu.Item
+													class="cursor-pointer"
 													onclick={(e) => {
 														e.stopPropagation();
-														handleReactivateStudent(student.id);
+														handleEditStudent(student.id);
 													}}
-													class="cursor-pointer text-green-600"
 												>
-													<RotateCcw class="mr-2 size-4" />
-													Reactivate
+													<Edit class="mr-2 size-4" />
+													Edit
 												</DropdownMenu.Item>
-												<DropdownMenu.Item
-													onclick={(e) => {
-														e.stopPropagation();
-														handlePermanentDeleteStudent(student.id);
-													}}
-													class="cursor-pointer text-red-600"
-												>
-													<Trash class="mr-2 size-4" />
-													Delete Permanently
-												</DropdownMenu.Item>
-											{/if}
-										</DropdownMenu.Content>
-									</DropdownMenu.Root>
+												{#if student.isActive}
+													<DropdownMenu.Item
+														onclick={(e) => {
+															e.stopPropagation();
+															handleDeleteStudent(student.id);
+														}}
+														class="cursor-pointer text-red-600"
+													>
+														<Trash2 class="mr-2 size-4" />
+														Deactivate
+													</DropdownMenu.Item>
+												{:else}
+													<DropdownMenu.Item
+														onclick={(e) => {
+															e.stopPropagation();
+															handleReactivateStudent(student.id);
+														}}
+														class="cursor-pointer text-green-600"
+													>
+														<RotateCcw class="mr-2 size-4" />
+														Reactivate
+													</DropdownMenu.Item>
+													<DropdownMenu.Item
+														onclick={(e) => {
+															e.stopPropagation();
+															handlePermanentDeleteStudent(student.id);
+														}}
+														class="cursor-pointer text-red-600"
+													>
+														<Trash class="mr-2 size-4" />
+														Delete Permanently
+													</DropdownMenu.Item>
+												{/if}
+											</DropdownMenu.Content>
+										</DropdownMenu.Root>
+									{:else}
+										<span class="text-sm text-muted-foreground">-</span>
+									{/if}
 								</Table.Cell>
 							</Table.Row>
 						{/each}
